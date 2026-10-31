@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { serializeOrder } from '@/lib/serialize';
+import { sendOrderEmail } from '@/lib/mailer';
 
 /**
  * Shared payment finalization logic used by BOTH the payment-return confirm
@@ -10,14 +11,19 @@ import { serializeOrder } from '@/lib/serialize';
 /**
  * Mark an order as paid and decrement product stock inside a single transaction.
  * Idempotent: orders that are no longer `pending` are returned untouched.
+ * Fires the "payment received / order confirmed" transactional email exactly
+ * once — only when this call performed the transition.
  */
 export async function markOrderPaid(orderId: string, paymentId: string | null | undefined) {
-  return db.$transaction(async (tx) => {
+  const pre = await db.order.findUnique({ where: { id: orderId }, select: { paymentStatus: true } });
+  const wasPending = pre?.paymentStatus === 'pending';
+
+  const updated = await db.$transaction(async (tx) => {
     const order = await tx.order.findUnique({ where: { id: orderId }, include: { items: true } });
     if (!order) return null;
     if (order.paymentStatus !== 'pending') return order; // already finalized
 
-    const updated = await tx.order.update({
+    const upd = await tx.order.update({
       where: { id: orderId },
       data: {
         paymentStatus: 'paid',
@@ -35,23 +41,30 @@ export async function markOrderPaid(orderId: string, paymentId: string | null | 
         });
       }
     }
-    return updated;
+    return upd;
   });
+
+  if (wasPending && updated) {
+    void sendOrderEmail(updated, 'confirmed');
+  }
+  return updated;
 }
 
 /**
  * Mark an order as failed/cancelled. Idempotent: orders that are no longer
- * `pending` are returned untouched.
+ * `pending` are returned untouched. Notifies the customer exactly once.
  */
 export async function markOrderFailed(orderId: string) {
   const order = await db.order.findUnique({ where: { id: orderId } });
   if (!order) return null;
   if (order.paymentStatus !== 'pending') return order; // already finalized
-  return db.order.update({
+  const updated = await db.order.update({
     where: { id: orderId },
     data: { paymentStatus: 'failed', status: 'cancelled' },
     include: { items: true },
   });
+  void sendOrderEmail(updated, 'cancelled');
+  return updated;
 }
 
 /**

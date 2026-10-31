@@ -1,0 +1,1 @@
+/home/z/my-project/.sandbox/pg/bin/postgres "-D" "/home/z/my-project/.sandbox/pgdata" "-p" "5433" "-c" "listen_addresses=127.0.0.1"

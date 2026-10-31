@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -140,4 +140,18 @@ model ContactMessage {
   subject   String
   message   String
   createdAt DateTime @default(now())
+}
+
+model EmailLog {
+  id        String   @id @default(cuid())
+  to        String
+  subject   String
+  template  String
+  status    String   @default("logged") // sent | logged | failed | skipped
+  provider  String   @default("resend")
+  error     String?
+  orderId   String?
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
 }

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { Search, ShoppingCart, Heart, User, Menu, X, ChevronDown, Package, LogOut, Settings, MapPin, Truck } from 'lucide-react';
 import { useApp, logoutUser } from '@/store/AppContext';
-import { Logo, LogoMark } from './Logo';
+import { Logo } from './Logo';
 
 export function Header() {
   const { state, dispatch } = useApp();
@@ -72,43 +72,32 @@ export function Header() {
 
       {/* Main header */}
       <div className="shell py-3">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {/* Mobile menu button */}
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label="Toggle menu" className="lg:hidden p-2 hover:bg-gray-100 rounded-lg">
+          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label="Toggle menu" className="lg:hidden p-2 hover:bg-gray-100 rounded-lg shrink-0">
             {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
 
-          {/* Logo */}
-          <Link href="/" className="shrink-0 hidden sm:block">
-            <Logo size="md" />
-          </Link>
-          <Link href="/" className="shrink-0 sm:hidden">
-            <LogoMark size={36} />
+          {/* Logo — compact wordmark on phones, full lockup on larger screens */}
+          <Link href="/" className="shrink-0" aria-label="ShopMitra home">
+            <span className="sm:hidden">
+              <Logo size="xs" tagline={false} />
+            </span>
+            <span className="hidden sm:inline">
+              <Logo size="md" />
+            </span>
           </Link>
 
-          {/* Search bar */}
-          <form onSubmit={handleSearch} className="flex-1 max-w-2xl">
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search products, brands, categories..."
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
-              />
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            </div>
-          </form>
-
-          {/* Right actions */}
-          <div className="flex items-center gap-1 sm:gap-2">
+          {/* Right actions — profile · wishlist · cart pinned to the far right on every device */}
+          <div className="ml-auto flex items-center gap-0.5 sm:gap-1.5 shrink-0">
             {/* User menu */}
             <div className="relative" ref={userMenuRef}>
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm text-navy-700 hover:bg-gray-50 rounded-lg transition"
+                aria-label={state.isLoggedIn ? 'Account menu' : 'Login or register'}
+                className="flex items-center gap-1.5 px-2 sm:px-3 py-2 text-sm text-navy-700 hover:bg-gray-50 rounded-lg transition"
               >
-                <User size={20} />
+                <User size={21} />
                 <span className="hidden md:block">{state.isLoggedIn ? state.user?.name?.split(' ')[0] : 'Account'}</span>
                 <ChevronDown size={14} className="hidden md:block" />
               </button>
@@ -151,8 +140,8 @@ export function Header() {
             </div>
 
             {/* Wishlist */}
-            <Link href="/wishlist" className="relative p-2.5 hover:bg-gray-50 rounded-lg transition hidden sm:block">
-              <Heart size={20} className="text-navy-700" />
+            <Link href="/wishlist" aria-label="Wishlist" className="relative p-2.5 hover:bg-gray-50 rounded-lg transition">
+              <Heart size={21} className="text-navy-700" />
               {state.wishlist.length > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-medium">
                   {state.wishlist.length}
@@ -161,8 +150,8 @@ export function Header() {
             </Link>
 
             {/* Cart */}
-            <Link href="/cart" className="relative p-2.5 hover:bg-gray-50 rounded-lg transition">
-              <ShoppingCart size={20} className="text-navy-700" />
+            <Link href="/cart" aria-label="Cart" className="relative p-2.5 hover:bg-gray-50 rounded-lg transition">
+              <ShoppingCart size={21} className="text-navy-700" />
               {cartCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-primary-600 text-white text-[10px] rounded-full flex items-center justify-center font-medium">
                   {cartCount}
@@ -170,6 +159,21 @@ export function Header() {
               )}
             </Link>
           </div>
+
+          {/* Search bar — full-width second row on phones (Meesho style), inline on desktop */}
+          <form onSubmit={handleSearch} className="order-last w-full lg:order-none lg:w-auto lg:flex-1 lg:max-w-2xl lg:mx-2">
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search for products, brands and more"
+                aria-label="Search products"
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-[15px] font-medium text-navy-900 placeholder:text-gray-500 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
+              />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+            </div>
+          </form>
         </div>
 
         {/* Navigation */}

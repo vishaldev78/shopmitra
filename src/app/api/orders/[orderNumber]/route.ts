@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
 import { serializeOrder } from '@/lib/serialize';
 import { markOrderPaid } from '@/lib/payments';
+import { sendOrderEmail, emailBaseUrl } from '@/lib/mailer';
 
 const patchSchema = z.object({
   status: z.enum(['pending', 'confirmed', 'shipped', 'delivered', 'cancelled']).optional(),
@@ -62,6 +63,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ orderNumb
     }
 
     const { status, payment_status } = parsed.data;
+    const previousStatus = order.status;
+    let paymentFinalizedHere = false;
 
     // Payment status transitions (online orders only — COD is collected on
     // delivery and the stock was already reserved when the order was placed).
@@ -69,6 +72,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ orderNumb
       if (order.paymentMethod !== 'cod') {
         if (payment_status === 'paid' && order.paymentStatus === 'pending') {
           await markOrderPaid(order.id, order.paymentId || `admin_${Date.now().toString(36)}`);
+          paymentFinalizedHere = true; // markOrderPaid already emailed the customer
         }
       }
     }
@@ -118,6 +122,17 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ orderNumb
     }
 
     const updated = await db.order.findUnique({ where: { id: order.id }, include: { items: true } });
+
+    // Transactional email on every real status change (shipped / delivered /
+    // cancelled / manual confirmation). Skipped when the payment path above
+    // already sent the confirmation so the customer never gets duplicates.
+    if (updated && updated.status !== previousStatus) {
+      const kind = updated.status as 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
+      if (!(kind === 'confirmed' && paymentFinalizedHere)) {
+        void sendOrderEmail(updated, kind, emailBaseUrl(req.nextUrl.origin));
+      }
+    }
+
     return NextResponse.json({ order: serializeOrder(updated!) });
   } catch (error) {
     console.error('order PATCH error:', error);

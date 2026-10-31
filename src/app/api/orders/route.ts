@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
 import { serializeOrder } from '@/lib/serialize';
 import { generateOrderNumber } from '@/lib/utils';
+import { sendOrderEmail, emailBaseUrl } from '@/lib/mailer';
 
 const shippingAddressSchema = z.object({
   fullName: z.string().min(1).max(120),
@@ -149,6 +150,13 @@ export async function POST(req: NextRequest) {
 
       return created;
     });
+
+    // COD orders are confirmed the moment they are placed — send the order
+    // confirmation email now. Online orders get theirs when payment succeeds
+    // (markOrderPaid → sendOrderEmail('confirmed')).
+    if (isCod) {
+      void sendOrderEmail(order, 'placed', emailBaseUrl(req.nextUrl.origin));
+    }
 
     return NextResponse.json({ order: serializeOrder(order) }, { status: 201 });
   } catch (error) {

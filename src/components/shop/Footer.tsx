@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Phone, Mail, ShieldCheck, Lock, BadgeCheck } from 'lucide-react';
+import { Phone, Mail, ShieldCheck, Lock, BadgeCheck, Facebook, Twitter, Instagram, Youtube } from 'lucide-react';
 import { useApp } from '@/store/AppContext';
 import { Logo } from './Logo';
 
@@ -47,9 +47,14 @@ export function Footer() {
             </div>
             <p className="text-navy-300 text-sm leading-relaxed">Your shopping friend — premium products at unbeatable prices with exceptional service and secure online payments.</p>
             <div className="flex gap-3 mt-4">
-              {['facebook', 'twitter', 'instagram', 'youtube'].map(social => (
-                <a key={social} href="#" aria-label={social} className="w-9 h-9 bg-navy-800 rounded-lg flex items-center justify-center hover:bg-primary-600 transition text-sm">
-                  {social[0].toUpperCase()}
+              {[
+                { name: 'Facebook', Icon: Facebook },
+                { name: 'Twitter', Icon: Twitter },
+                { name: 'Instagram', Icon: Instagram },
+                { name: 'YouTube', Icon: Youtube },
+              ].map(({ name, Icon }) => (
+                <a key={name} href="#" aria-label={name} title={name} className="w-9 h-9 bg-navy-800 rounded-lg flex items-center justify-center hover:bg-primary-600 transition">
+                  <Icon size={16} aria-hidden="true" />
                 </a>
               ))}
             </div>
