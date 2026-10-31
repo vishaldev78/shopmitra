@@ -45,7 +45,7 @@ export interface DodoCheckoutInput {
 export type DodoResult<T> = { ok: true; data: T } | { ok: false; code: string; message: string; status: number };
 
 /** POST /checkouts — create a hosted checkout session. */
-export async function createDodoCheckout(config: DodoConfig, input: DodoCheckoutInput): Promise<DodoResult<{ checkout_url: string; payment_id?: string }>> {
+export async function createDodoCheckout(config: DodoConfig, input: DodoCheckoutInput): Promise<DodoResult<{ checkout_url: string; session_id?: string; payment_id?: string }>> {
   try {
     const res = await fetch(`${config.baseUrl}/checkouts`, {
       method: 'POST',
@@ -67,11 +67,55 @@ export async function createDodoCheckout(config: DodoConfig, input: DodoCheckout
     if (!checkoutUrl) {
       return { ok: false, code: 'MISSING_CHECKOUT_URL', message: 'Dodo did not return a checkout_url', status: 502 };
     }
-    return { ok: true, data: { checkout_url: checkoutUrl, payment_id: (body as { payment_id?: string }).payment_id } };
+    return {
+      ok: true,
+      data: {
+        checkout_url: checkoutUrl,
+        session_id: (body as { session_id?: string }).session_id,
+        payment_id: (body as { payment_id?: string }).payment_id,
+      },
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Network error contacting Dodo Payments';
     return { ok: false, code: 'DODO_NETWORK_ERROR', message, status: 504 };
   }
+}
+
+export interface DodoCheckoutSession {
+  id: string;
+  /** null until the customer completes (or attempts) payment */
+  payment_id: string | null;
+  payment_status: string | null;
+}
+
+/**
+ * GET /checkouts/{session_id} — checkout session status. `payment_id` becomes
+ * available once the customer completes the payment; use it with
+ * getDodoPayment() for the authoritative status.
+ */
+export async function getDodoCheckoutSession(config: DodoConfig, sessionId: string): Promise<{ found: true; session: DodoCheckoutSession } | { found: false; status: number; code: string; message: string }> {
+  const res = await fetch(`${config.baseUrl}/checkouts/${encodeURIComponent(sessionId)}`, {
+    headers: { Authorization: `Bearer ${config.apiKey}` },
+    signal: AbortSignal.timeout(15000),
+  }).catch(() => null);
+
+  if (!res) return { found: false, status: 504, code: 'DODO_NETWORK_ERROR', message: 'Network error contacting Dodo Payments' };
+  if (res.status === 404) return { found: false, status: 404, code: 'SESSION_NOT_FOUND', message: 'Checkout session not found on Dodo' };
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const b = body as { code?: string; message?: string };
+    return { found: false, status: res.status, code: b.code ?? 'DODO_API_ERROR', message: b.message ?? `Dodo session lookup failed (${res.status})` };
+  }
+  const b = body as Record<string, unknown>;
+  return {
+    found: true,
+    session: {
+      id: (b.id as string) ?? sessionId,
+      payment_id: (b.payment_id as string | null) ?? null,
+      payment_status: (b.payment_status as string | null) ?? null,
+    },
+  };
 }
 
 export type DodoPaymentStatus = 'succeeded' | 'pending' | 'failed' | 'cancelled' | string;
@@ -82,6 +126,47 @@ export interface DodoPayment {
   total_amount?: number;
   currency?: string;
   metadata?: Record<string, string>;
+}
+
+/**
+ * POST /products — register a store product on Dodo so it can be sold via
+ * checkout sessions. Prices use the smallest currency unit (paise for INR).
+ * Requires the API key to have products:write.
+ */
+export async function createDodoProduct(config: DodoConfig, input: { name: string; description?: string; price: number; currency: string }): Promise<DodoResult<{ product_id: string }>> {
+  try {
+    const res = await fetch(`${config.baseUrl}/products`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: input.name.slice(0, 200),
+        description: input.description?.slice(0, 500) || undefined,
+        tax_category: 'digital_products',
+        price: {
+          type: 'one_time_price',
+          currency: input.currency.toUpperCase(),
+          price: Math.round(input.price * 100), // minor units (paise)
+          discount_bps: 0,
+          purchasing_power_parity: false,
+          tax_inclusive: true,
+        },
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const b = body as { code?: string; message?: string };
+      return { ok: false, code: b.code ?? 'DODO_API_ERROR', message: b.message ?? `Dodo product creation failed (${res.status})`, status: res.status };
+    }
+    const productId = (body as { product_id?: string }).product_id;
+    if (!productId) {
+      return { ok: false, code: 'MISSING_PRODUCT_ID', message: 'Dodo did not return a product_id', status: 502 };
+    }
+    return { ok: true, data: { product_id: productId } };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Network error contacting Dodo Payments';
+    return { ok: false, code: 'DODO_NETWORK_ERROR', message, status: 504 };
+  }
 }
 
 /** GET /payments/{id} — authoritative payment status used for server-side verification. */

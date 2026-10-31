@@ -47,6 +47,7 @@ model Product {
   isActive         Boolean     @default(true)
   tags             String      @default("[]") // JSON array
   specifications   String      @default("{}") // JSON object
+  dodoProductId    String?     // Dodo Payments product id (pdt_...) synced on checkout
   createdAt        DateTime    @default(now())
   orderItems       OrderItem[]
 }

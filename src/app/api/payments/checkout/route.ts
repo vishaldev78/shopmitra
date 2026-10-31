@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
-import { createDodoCheckout, getDodoConfig } from '@/lib/dodo';
+import { createDodoCheckout, createDodoProduct, getDodoConfig } from '@/lib/dodo';
 
 const checkoutSchema = z.object({
   order_number: z.string().min(1).max(50),
@@ -59,49 +59,81 @@ export async function POST(req: NextRequest) {
     const cancelUrl = `${origin}/payment-cancel?order_number=${encodeURIComponent(order.orderNumber)}`;
 
     // 3) Real Dodo checkout session
-    // Dodo requires registered product ids (pdt_...); every order item must
-    // reference a product so the cart can be built.
+    // Dodo requires registered product ids (pdt_...). Store products are
+    // auto-synced: any product without a Dodo mapping is created on Dodo
+    // (products:write) once, then cached in the dodoProductId column.
     const payable = order.items.every((i) => Boolean(i.productId));
     if (config && payable) {
       const shipping = JSON.parse(order.shippingAddress || '{}') as { fullName?: string };
-      const result = await createDodoCheckout(config, {
-        product_cart: order.items.map((i) => ({
-          // Note: store product ids must be synced to Dodo products
-          // (dashboard or products API) for real checkouts to succeed.
-          product_id: i.productId as string,
-          quantity: i.quantity,
-        })),
-        customer: {
-          email: customer_email || user?.email || undefined,
-          name: customer_name || shipping.fullName || user?.name || undefined,
-        },
-        return_url: returnUrl,
-        cancel_url: cancelUrl,
-        metadata: { order_number: order.orderNumber, source: 'shopmitra' },
-      });
 
-      if (result.ok) {
-        // Remember the Dodo payment id so webhooks/returns can reconcile
-        if (result.data.payment_id) {
-          await db.order.update({ where: { id: order.id }, data: { paymentId: result.data.payment_id } });
+      // 3a) Ensure every ordered product exists on Dodo (auto-sync, cached)
+      const cart: { product_id: string; quantity: number }[] = [];
+      let syncError: string | null = null;
+      for (const item of order.items) {
+        const product = await db.product.findUnique({ where: { id: item.productId as string } });
+        if (!product) {
+          syncError = `Product ${item.productName} no longer exists`;
+          break;
         }
-        return NextResponse.json({
-          success: true,
-          checkout_url: result.data.checkout_url,
-          payment_id: result.data.payment_id,
-          provider: 'dodo',
+        let dodoId = product.dodoProductId;
+        if (!dodoId) {
+          const created = await createDodoProduct(config, {
+            name: product.name,
+            description: product.shortDescription ?? product.description ?? undefined,
+            price: product.price,
+            currency: 'INR',
+          });
+          if (created.ok) {
+            dodoId = created.data.product_id;
+            await db.product.update({ where: { id: product.id }, data: { dodoProductId: dodoId } });
+          } else {
+            syncError = `Product sync failed for ${product.name} (${created.code}: ${created.message})`;
+            break;
+          }
+        }
+        cart.push({ product_id: dodoId, quantity: item.quantity });
+      }
+
+      // 3b) Create the hosted checkout session
+      if (!syncError) {
+        const result = await createDodoCheckout(config, {
+          product_cart: cart,
+          customer: {
+            email: customer_email || user?.email || undefined,
+            name: customer_name || shipping.fullName || user?.name || undefined,
+          },
+          return_url: returnUrl,
+          cancel_url: cancelUrl,
+          metadata: { order_number: order.orderNumber, source: 'shopmitra' },
         });
+
+        if (result.ok) {
+          // Persist the Dodo session/payment reference so the return flow and
+          // webhooks can reconcile: session_id now, real payment id after.
+          const reference = result.data.payment_id ?? result.data.session_id;
+          if (reference) {
+            await db.order.update({ where: { id: order.id }, data: { paymentId: reference } });
+          }
+          return NextResponse.json({
+            success: true,
+            checkout_url: result.data.checkout_url,
+            session_id: result.data.session_id,
+            payment_id: result.data.payment_id,
+            provider: 'dodo',
+          });
+        }
+        syncError = `${result.code}: ${result.message}`;
       }
 
       // Real integration attempted but failed — surface the reason, then keep
       // the demo usable via the simulated checkout.
-      console.error('dodo checkout failed:', result.code, result.message);
+      console.error('dodo checkout failed:', syncError);
       const simulated = simulatedCheckoutUrl(order.orderNumber);
       return NextResponse.json({
         success: true,
         checkout_url: simulated,
         provider: 'simulated',
-        notice: `Dodo Payments checkout unavailable (${result.code}: ${result.message}). Using simulated checkout.`,
+        notice: `Dodo Payments checkout unavailable (${syncError}). Using simulated checkout.`,
       });
     }
 

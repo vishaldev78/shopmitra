@@ -49,3 +49,24 @@ Work Log:
 Stage Summary:
 - Professional payment architecture: checkout (DB-authoritative) → return (server-side verification) → webhook (signature-verified source of truth), all idempotent and DRY via shared lib
 - To go live with real checkout: regenerate API key with checkout_sessions:write (+products:write for auto product creation), create products in Dodo dashboard, replace DODO_PAYMENTS_WEBHOOK_KEY with dashboard signing secret, point webhook endpoint to <domain>/api/payments/webhook
+
+---
+Task ID: 3
+Agent: Z.ai (main agent)
+Task: Activate REAL Dodo checkout with user's write-scoped API key
+
+Work Log:
+- Verified new key: checkout_sessions:write + products:write available; previous read-only limitation removed
+- Discovered Dodo product registration requirement: checkout sessions need registered pdt_ ids; found create format via docs (tax_category required; price in minor units; tax_inclusive on price object)
+- Added dodoProductId column to Product (db push) for Dodo product-id caching
+- Added createDodoProduct to src/lib/dodo.ts (auto-sync: store product → Dodo product, cached on first checkout)
+- Checkout route: auto-syncs ordered products to Dodo before creating session; stores session_id (cks_...) on order (paymentId column) since POST /checkouts returns only session_id + checkout_url
+- Added getDodoCheckoutSession (GET /checkouts/{id} → payment_id becomes available after payment); confirm route resolves cks_ → pay_ → authoritative status
+- FIXED REAL BUG found during live E2E: browser returning from Dodo without a session got 403 on confirm → authorization reworked: Dodo-verified payments (metadata.order_number or amount+currency match via dodoPaymentReferencesOrder) are accepted without session; demo path still requires owner; finalized orders reveal state-only (no payload) when exact payment_id is presented
+- LIVE E2E with real Dodo test checkout: auto-synced product "Designer Leather Handbag" appeared on hosted checkout; paid ₹8,999 with Dodo India test card 4576238912771450 via Cashfree 3DS simulator (OTP 111000) → returned status=succeeded → server-side verified → "Payment Successful ✓ Verified by Dodo Payments"; also verified decline path (CARD_DECLINED, PAYMENT_METHOD_UNSUPPORTED with wrong-region card) → order correctly failed/cancelled
+- Test suite updated for real-integration behavior (session pending path): 14/14 PASS; lint clean; test orders cleaned, stock restored, user's own orders kept
+- Dodo account now has 2 synced products (pdt_...) ready for future checkouts
+
+Stage Summary:
+- REAL Dodo Payments fully operational in test mode: store order → product auto-sync → hosted checkout (UPI/Cards/etc.) → 3DS → server-verified return → webhook backup → idempotent finalization
+- For production: swap test key with live key (DODO_PAYMENTS_ENVIRONMENT=live_mode), replace DODO_PAYMENTS_WEBHOOK_KEY with dashboard signing secret, register webhook endpoint <domain>/api/payments/webhook
