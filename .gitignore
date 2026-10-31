@@ -37,6 +37,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# Local development folders - never commit
+/.zscripts/
+/.sandbox/
 
 # typescript
 *.tsbuildinfo
