@@ -96,3 +96,24 @@ Work Log:
 Stage Summary:
 - Payment now feels native: user never leaves the store, hosted checkout lives in a controlled popup, status verification stays server-authoritative (poll + webhook + return all reconcile on the same finalize helpers)
 - Sign-in wall is direct (checkout → login → back to checkout), loading states are proper shimmer skeletons, and all Z.ai traces are gone from the UI
+
+## Stage 5 — Marketplace-grade checkout, saved addresses, admin workflow, 80% shell (2026-10-31)
+
+- Flipkart/Meesho-style checkout rebuilt (src/app/checkout/page.tsx):
+  - Progressive sections: Login ✓ (collapsed) → Delivery Address → Order Summary → Payment Options; stepper mirrors the big marketplaces
+  - Saved addresses: ask once, then never again — radio cards with HOME/WORK tag + DEFAULT badge, inline Edit (PATCH), Remove, "Add a new address"; first saved address auto-becomes default
+  - New prisma Address model (+ userId cascade) + /api/addresses GET/POST + /api/addresses/[id] PATCH/DELETE (owner-scoped, default promotion on delete, zod-validated)
+  - One-tap current location (GPS + Nominatim reverse geocode fills city/state/PIN) and PIN-code lookup via api.postalpincode.in (city/state autofill) inside reusable src/components/shop/AddressForm.tsx
+  - Payment options: UPI (PhonePe / GPay / Paytm / UPI SVG marks via new PaymentLogos.tsx), Credit/Debit Card (Visa/Mastercard/RuPay marks), Cash on Delivery — zero gateway branding, zero RECOMMENDED badge
+  - Mobile sticky bottom bar (total + Pay Now / Place Order)
+- In-app payment (no external redirect): PaymentModal now embeds the official dodopayments-checkout overlay SDK (mode test/live from checkout API `payment_mode`); server polling of /api/payments/confirm remains source of truth; handles checkout.closed, SDK-load failure falls back to a same-tab secure redirect that returns to the in-app /payment-return page; sandbox demo path kept for no-key environments
+- Payment amount correctness fix: Dodo now syncs ONE product per ORDER whose price equals order.total (incl. GST + delivery − coupon; cached as Order.dodoProductId) instead of per-catalog products — customers are charged exactly what checkout showed (earlier session was charging pre-tax subtotal)
+- Admin workflow ("admin can handle everything"):
+  - PATCH /api/orders/[orderNumber] (admin-only): full status workflow pending→confirmed→shipped→delivered/cancelled with stock conservation (cancel restores units, reopen re-reserves with availability check) + COD "mark paid on delivery" + online pending→paid via the same markOrderPaid fulfillment path
+  - PATCH /api/admin/users/[id]: activate/deactivate accounts + role management (super_admin-only for staff, self-lockout prevented)
+  - Admin UI: Orders tab with status filter chips + per-row status select + COD Mark-paid; Customers tab with enable/disable + role select; Settings payment card neutralized (no gateway/key exposure)
+- Global layout: site-wide .shell container (92% phones / 86% tablets / 80% desktop, capped ultrawide) applied to header, footer, boot skeleton and every page; top bar truncates cleanly on small phones
+- Banner system: generated 4 marketplace-style banner artworks (public/banners/*.png, festive/electronics/fashion/home), attached via scripts/update-banners.ts (+ new "Electronics Mega Deals" banner); home hero redesigned as full-bleed image carousel with transparent navy gradient overlay, LIMITED TIME chip, pill dots, arrows
+- De-AI / branding sweep: last user-visible gateway name removed everywhere (Header, Footer, cart, home features, order-success, PaymentReturn, FAQ/StaticPages, layout metadata, admin); z-ai-web-dev-sdk dependency removed from package.json; no Z.AI/Z.ai strings anywhere in app code
+- New page /account/addresses (header link was dangling): full saved-address manager (add/edit/remove, default auto-handling, empty state)
+- Verification: 14/14 API payment tests PASS (real cks_ session created with the write key, webhook signature, idempotency, stock, COD); browser E2E — guest /checkout → /login?redirect=/checkout wall ✓, login → back to checkout ✓, address saved → shown as card with Edit ✓ (form never re-asked), UPI/COD options with brand marks ✓, COD order placed → /order-success ✓, admin cancelled stale order → toast + cancelled pill + filter counts ✓, customers tab ✓, mobile 390px home/checkout/sticky-bar ✓; lint clean; zero runtime errors in dev.log

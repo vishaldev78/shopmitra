@@ -107,6 +107,22 @@ export interface AdminUserRow {
   order_count: number;
 }
 
+/** Saved delivery address — mirrors ShippingAddress fields so it can be sent
+ *  straight to the order API, plus management metadata. */
+export interface SavedAddress {
+  id: string;
+  label: string; // Home | Work | Other
+  fullName: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  isDefault: boolean;
+}
+
 export interface AdminStats {
   totalRevenue: number;
   totalOrders: number;

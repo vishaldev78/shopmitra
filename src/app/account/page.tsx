@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { User, Package, Heart, Settings, ChevronRight, Lock } from 'lucide-react';
+import { User, Package, Heart, Settings, ChevronRight, Lock, MapPin } from 'lucide-react';
 import { useApp } from '@/store/AppContext';
 import { formatPrice } from '@/lib/utils';
 
@@ -10,7 +10,7 @@ export default function AccountDashboard() {
   if (!state.isLoggedIn) return <NotLoggedIn />;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="shell py-6">
       <h1 className="text-2xl font-bold text-navy-900 mb-6">My Account</h1>
       <div className="grid md:grid-cols-3 gap-6">
         <div className="md:col-span-1">
@@ -23,6 +23,7 @@ export default function AccountDashboard() {
               {[
                 { to: '/account', icon: <User size={16} />, label: 'Profile', badge: 0 },
                 { to: '/account/orders', icon: <Package size={16} />, label: 'My Orders', badge: state.orders.length },
+                { to: '/account/addresses', icon: <MapPin size={16} />, label: 'Saved Addresses', badge: 0 },
                 { to: '/wishlist', icon: <Heart size={16} />, label: 'Wishlist', badge: state.wishlist.length },
               ].map((item) => (
                 <Link key={item.to} href={item.to} className="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm text-navy-700 hover:bg-gray-50 transition">

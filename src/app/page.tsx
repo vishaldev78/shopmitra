@@ -37,7 +37,7 @@ export default function Home() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4">
+    <div className="shell">
       {/* Boot state — shimmer skeletons until the catalog arrives */}
       {state.loading && (
         <>
@@ -53,34 +53,47 @@ export default function Home() {
         </>
       )}
 
-      {/* Hero Banner */}
+      {/* Hero Banner — full-bleed artwork with a transparent gradient overlay */}
       {!state.loading && banners.length > 0 && (
-        <section className="relative mt-6 rounded-2xl overflow-hidden">
-          <div className={`bg-gradient-to-r ${banners[currentBanner]?.background_color || 'from-indigo-600 to-purple-600'} p-8 md:p-16 text-white transition-all duration-500`}>
-            {banners[currentBanner]?.image_url && (
-              <img src={banners[currentBanner].image_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20" />
+        <section className="relative mt-6 rounded-2xl overflow-hidden group" aria-roledescription="carousel" aria-label="Featured offers">
+          <div className="relative aspect-[16/11] sm:aspect-[21/9] lg:aspect-[5/2]">
+            {banners[currentBanner]?.image_url ? (
+              <img
+                src={banners[currentBanner].image_url}
+                alt={banners[currentBanner]?.title || 'Featured offer'}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            ) : (
+              <div className={`absolute inset-0 bg-gradient-to-r ${banners[currentBanner]?.background_color || 'from-indigo-600 to-purple-600'}`} />
             )}
-            <div className="relative max-w-xl">
-              <h1 className="text-3xl md:text-5xl font-bold mb-3">{banners[currentBanner]?.title}</h1>
-              <p className="text-lg md:text-xl opacity-90 mb-6">{banners[currentBanner]?.subtitle}</p>
-              <Link href={banners[currentBanner]?.cta_link || '/products'} className="inline-flex items-center gap-2 bg-white text-navy-900 px-6 py-3 rounded-xl font-semibold hover:bg-gray-100 transition">
-                {banners[currentBanner]?.cta_text || 'Shop Now'} <ArrowRight size={18} />
-              </Link>
+            {/* Transparent overlay — keeps text readable on any artwork */}
+            <div className="absolute inset-0 bg-gradient-to-r from-navy-900/85 via-navy-900/45 to-transparent" />
+            <div className="absolute inset-0 flex items-center">
+              <div className="px-6 sm:px-10 lg:px-14 max-w-xl">
+                <span className="inline-block text-[11px] sm:text-xs font-bold uppercase tracking-widest text-white/80 bg-white/10 backdrop-blur-sm px-3 py-1 rounded-full mb-3 sm:mb-4">
+                  {banners[currentBanner]?.subtitle ? 'Limited Time' : 'ShopMitra'}
+                </span>
+                <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight drop-shadow-sm">{banners[currentBanner]?.title}</h1>
+                <p className="text-sm sm:text-lg text-white/85 mt-2 sm:mt-3 line-clamp-2">{banners[currentBanner]?.subtitle}</p>
+                <Link href={banners[currentBanner]?.cta_link || '/products'} className="inline-flex items-center gap-2 bg-white text-navy-900 px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl font-semibold hover:bg-gray-100 transition mt-4 sm:mt-6 text-sm sm:text-base shadow-lg">
+                  {banners[currentBanner]?.cta_text || 'Shop Now'} <ArrowRight size={17} />
+                </Link>
+              </div>
             </div>
             {banners.length > 1 && (
               <>
-                <div className="absolute bottom-4 left-8 flex gap-2">
+                <div className="absolute bottom-4 left-6 sm:left-10 lg:left-14 flex gap-2">
                   {banners.map((_, i) => (
                     <button
                       key={i}
                       onClick={() => setCurrentBanner(i)}
                       aria-label={`Go to banner ${i + 1}`}
-                      className={`w-2.5 h-2.5 rounded-full transition ${i === currentBanner ? 'bg-white' : 'bg-white/40'}`}
+                      className={`h-1.5 rounded-full transition-all ${i === currentBanner ? 'w-7 bg-white' : 'w-2.5 bg-white/40 hover:bg-white/60'}`}
                     />
                   ))}
                 </div>
-                <button onClick={() => setCurrentBanner((b) => (b - 1 + banners.length) % banners.length)} aria-label="Previous banner" className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center"><ChevronLeft size={20} /></button>
-                <button onClick={() => setCurrentBanner((b) => (b + 1) % banners.length)} aria-label="Next banner" className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center"><ChevronRight size={20} /></button>
+                <button onClick={() => setCurrentBanner((b) => (b - 1 + banners.length) % banners.length)} aria-label="Previous banner" className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-10 sm:h-10 bg-white/15 hover:bg-white/30 backdrop-blur-sm rounded-full items-center justify-center hidden sm:flex transition"><ChevronLeft size={20} /></button>
+                <button onClick={() => setCurrentBanner((b) => (b + 1) % banners.length)} aria-label="Next banner" className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-10 sm:h-10 bg-white/15 hover:bg-white/30 backdrop-blur-sm rounded-full items-center justify-center hidden sm:flex"><ChevronRight size={20} /></button>
               </>
             )}
           </div>
@@ -92,7 +105,7 @@ export default function Home() {
         {[
           { icon: <Truck size={24} />, title: 'Free Shipping', desc: 'On orders above ₹999' },
           { icon: <RotateCcw size={24} />, title: 'Easy Returns', desc: '30-day return policy' },
-          { icon: <Shield size={24} />, title: 'Secure Payment', desc: 'Via Dodo Payments' },
+          { icon: <Shield size={24} />, title: 'Secure Payment', desc: 'UPI, Cards & COD' },
           { icon: <Headphones size={24} />, title: '24/7 Support', desc: 'Dedicated help center' },
         ].map((feature, i) => (
           <div key={i} className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">

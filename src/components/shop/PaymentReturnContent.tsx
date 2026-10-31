@@ -83,7 +83,7 @@ export function PaymentReturnContent({ cancelled = false }: { cancelled?: boolea
       <div className="max-w-lg mx-auto px-4 py-20 text-center">
         <Loader2 size={48} className="animate-spin text-primary-600 mx-auto mb-4" />
         <h1 className="text-xl font-bold text-navy-900 mb-2">Processing Payment...</h1>
-        <p className="text-navy-500">Please wait while we verify your payment with Dodo Payments.</p>
+        <p className="text-navy-500">Please wait while we verify your payment with your bank.</p>
       </div>
     );
   }
@@ -96,7 +96,7 @@ export function PaymentReturnContent({ cancelled = false }: { cancelled?: boolea
         </div>
         <h1 className="text-2xl font-bold text-navy-900 mb-2">Payment Processing</h1>
         <p className="text-navy-500 mb-6">
-          Your payment is still being verified by Dodo Payments. Your order will be confirmed automatically — usually within a few minutes.
+          Your payment is still being verified with your bank. Your order will be confirmed automatically — usually within a few minutes.
         </p>
         {orderNumber && (
           <div className="bg-gray-50 rounded-xl p-6 text-left mb-6">
@@ -119,13 +119,13 @@ export function PaymentReturnContent({ cancelled = false }: { cancelled?: boolea
           <Check size={40} className="text-green-600" />
         </div>
         <h1 className="text-2xl font-bold text-navy-900 mb-2">Payment Successful!</h1>
-        <p className="text-navy-500 mb-6">Your payment has been processed via Dodo Payments.</p>
+        <p className="text-navy-500 mb-6">Your payment has been processed successfully.</p>
         {orderNumber && (
           <div className="bg-gray-50 rounded-xl p-6 text-left mb-6">
             <p className="text-sm text-navy-500">Order Number</p>
             <p className="font-bold text-navy-900 text-lg">{orderNumber}</p>
             <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
-              <Check size={12} /> Verified by Dodo Payments
+              <Check size={12} /> Payment verified & confirmed
             </p>
           </div>
         )}

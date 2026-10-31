@@ -3,13 +3,14 @@
 /**
  * In-page secure payment overlay.
  *
- * The customer never leaves the checkout page: the hosted Dodo checkout opens
- * in a small popup window (opened synchronously on click so browsers don't
- * block it), while this overlay watches the order status server-side and
- * moves to success/failure the moment the payment settles. If the popup is
- * blocked, the overlay falls back to a manual "Open secure checkout" button.
+ * The customer never leaves the store: the hosted checkout page renders as an
+ * overlay INSIDE this app (official checkout web SDK), while this card watches
+ * the order status server-side and moves to success/failure the moment the
+ * payment settles. If the overlay SDK cannot load (old browser, blocked
+ * script), the card falls back to a same-tab secure redirect that lands back
+ * on the in-app payment confirmation page when done.
  *
- * For the sandbox provider (no Dodo connectivity) the overlay shows demo
+ * For the sandbox provider (no gateway connectivity) the card shows demo
  * controls instead — completing or failing the payment is an explicit user
  * action that carries the unguessable `sim_…` reference issued at checkout.
  */
@@ -17,26 +18,44 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   X, Lock, ShieldCheck, Loader2, CheckCircle2, XCircle,
-  ExternalLink, AlertTriangle, RotateCcw,
+  AlertTriangle, RotateCcw, ExternalLink,
 } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 
 export type PaymentProvider = 'dodo' | 'simulated';
 export type PaymentOutcome = 'succeeded' | 'failed';
 
-type Phase = 'awaiting' | 'popup_blocked' | 'window_closed' | 'success' | 'failed' | 'demo';
+type Phase = 'opening' | 'awaiting' | 'sdk_unavailable' | 'window_closed' | 'success' | 'failed' | 'demo';
 
-const POPUP_NAME = 'shopmitra_secure_checkout';
-const POPUP_FEATURES = 'width=480,height=760,menubar=no,toolbar=no,location=yes,resizable=yes,scrollbars=yes';
 const POLL_INTERVAL_MS = 2500;
 
-/** Open (or reuse) the payment popup. Must be called from a user gesture. */
-export function openCheckoutPopup(url: string): Window | null {
-  const existing = window.open('', POPUP_NAME, POPUP_FEATURES);
-  if (!existing) return null;
-  if (url) existing.location.href = url;
-  existing.focus();
-  return existing;
+/* ------------------------------------------------------------------ */
+/* Checkout web SDK — initialized once per page load, events bridged   */
+/* to the active overlay instance through a module-level ref.          */
+/* ------------------------------------------------------------------ */
+
+type SdkModule = typeof import('dodopayments-checkout');
+type CheckoutEventName =
+  | 'checkout.opened' | 'checkout.payment_page_opened' | 'checkout.closed' | 'checkout.error';
+
+const sdkState: { module: SdkModule | null; initialized: boolean } = { module: null, initialized: false };
+const sdkEventSink: { current: ((type: CheckoutEventName) => void) | null } = { current: null };
+
+async function loadCheckoutSdk(mode: 'test' | 'live'): Promise<SdkModule> {
+  if (sdkState.module) return sdkState.module;
+  const mod = await import('dodopayments-checkout');
+  if (!sdkState.initialized) {
+    mod.DodoPayments.Initialize({
+      mode,
+      displayType: 'overlay',
+      onEvent: (event) => {
+        sdkEventSink.current?.(event.event_type as CheckoutEventName);
+      },
+    });
+    sdkState.initialized = true;
+  }
+  sdkState.module = mod;
+  return mod;
 }
 
 interface PaymentModalProps {
@@ -45,6 +64,8 @@ interface PaymentModalProps {
   amount: number;
   provider: PaymentProvider;
   checkoutUrl: string;
+  /** Gateway environment — drives the overlay SDK mode. */
+  paymentMode?: 'test' | 'live';
   /** Unguessable reference for simulated payments — required to finalize them. */
   simulatedPaymentId?: string | null;
   /** Fires once when the payment settles; parent clears cart + redirects. */
@@ -57,11 +78,10 @@ interface PaymentModalProps {
 
 export function PaymentModal({
   open, orderNumber, amount, provider, checkoutUrl,
-  simulatedPaymentId, onFinalized, onRetry, onClose,
+  paymentMode = 'test', simulatedPaymentId, onFinalized, onRetry, onClose,
 }: PaymentModalProps) {
-  const [phase, setPhase] = useState<Phase>(provider === 'simulated' ? 'demo' : 'awaiting');
+  const [phase, setPhase] = useState<Phase>(provider === 'simulated' ? 'demo' : 'opening');
   const [checking, setChecking] = useState(false);
-  const popupRef = useRef<Window | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const phaseRef = useRef<Phase>(phase);
   phaseRef.current = phase;
@@ -78,25 +98,50 @@ export function PaymentModal({
   useEffect(() => {
     if (!open) return;
     settledRef.current = false;
-    if (provider === 'simulated') {
-      setPhase('demo');
-      return;
-    }
-    const popup = openCheckoutPopup(checkoutUrl);
-    setPhase(popup ? 'awaiting' : 'popup_blocked');
-    popupRef.current = popup;
-  }, [open, checkoutUrl, provider]);
+    if (provider === 'simulated') setPhase('demo');
+  }, [open, provider]);
 
-  // Live status polling while the hosted Dodo window is open / closed early.
+  // Open the in-app checkout overlay and keep server-side status polling.
+  useEffect(() => {
+    if (!open || provider !== 'dodo') return;
+    let cancelled = false;
+
+    setPhase('opening');
+    loadCheckoutSdk(paymentMode)
+      .then((mod) => {
+        if (cancelled) return;
+        mod.DodoPayments.Checkout.open({ checkoutUrl });
+        setPhase('awaiting');
+      })
+      .catch(() => {
+        if (!cancelled) setPhase('sdk_unavailable');
+      });
+
+    sdkEventSink.current = (type) => {
+      if (settledRef.current) return;
+      if (type === 'checkout.closed' && phaseRef.current !== 'success' && phaseRef.current !== 'failed') {
+        setPhase('window_closed');
+      }
+    };
+
+    return () => {
+      cancelled = true;
+      sdkEventSink.current = null;
+      try {
+        sdkState.module?.DodoPayments.Checkout.close(false);
+      } catch {
+        /* overlay already gone */
+      }
+    };
+  }, [open, provider, checkoutUrl, paymentMode]);
+
+  // Live status polling while the checkout overlay is open (source of truth
+  // is always the server, never anything the client claims).
   useEffect(() => {
     if (!open || provider !== 'dodo') return;
 
     const check = async () => {
       if (settledRef.current) return;
-      // Popup closed before settling? Keep polling once more, then surface it.
-      if (popupRef.current && popupRef.current.closed && phaseRef.current === 'awaiting') {
-        setPhase('window_closed');
-      }
       try {
         const res = await fetch('/api/payments/confirm', {
           method: 'POST',
@@ -118,9 +163,9 @@ export function PaymentModal({
 
     timerRef.current = setInterval(check, POLL_INTERVAL_MS);
     return stopPolling;
-  }, [open, provider, orderNumber]);
+  }, [open, provider, orderNumber, onFinalized, stopPolling]);
 
-  // Manual status check for the "window closed early" state.
+  // Manual status check for the "closed early" state.
   const checkNow = async () => {
     setChecking(true);
     try {
@@ -137,7 +182,7 @@ export function PaymentModal({
         onFinalized(orderNumber, data.state);
         return;
       }
-      if (popupRef.current && !popupRef.current.closed) setPhase('awaiting');
+      if (sdkState.module?.DodoPayments.Checkout.isOpen()) setPhase('awaiting');
     } finally {
       setChecking(false);
     }
@@ -167,24 +212,32 @@ export function PaymentModal({
     }
   };
 
-  if (!open) return null;
+  // Same-tab secure redirect fallback — the gateway lands back on the
+  // in-app confirmation page when the payment completes.
+  const redirectToSecurePage = () => {
+    window.location.href = checkoutUrl;
+  };
 
-  const reopenPopup = () => {
-    const popup = openCheckoutPopup(checkoutUrl);
-    if (popup) {
-      popupRef.current = popup;
+  const reopenOverlay = async () => {
+    try {
+      const mod = await loadCheckoutSdk(paymentMode);
+      mod.DodoPayments.Checkout.open({ checkoutUrl });
       setPhase('awaiting');
+    } catch {
+      setPhase('sdk_unavailable');
     }
   };
 
+  if (!open) return null;
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-900/60 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4 bg-navy-900/60 backdrop-blur-sm animate-fade-in"
       role="dialog"
       aria-modal="true"
       aria-label="Secure payment"
     >
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
+      <div className="w-full max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
@@ -193,7 +246,7 @@ export function PaymentModal({
             </span>
             <div>
               <p className="text-sm font-semibold text-navy-900 leading-tight">Secure Payment</p>
-              <p className="text-[11px] text-navy-400 leading-tight">256-bit SSL · Dodo Payments</p>
+              <p className="text-[11px] text-navy-400 leading-tight">256-bit SSL encrypted</p>
             </div>
           </div>
           {phase !== 'success' && (
@@ -216,15 +269,17 @@ export function PaymentModal({
 
         {/* Body */}
         <div className="px-5 pb-5 pt-3">
-          {phase === 'awaiting' && (
+          {(phase === 'opening' || phase === 'awaiting') && (
             <div className="text-center space-y-4">
               <Loader2 size={36} className="animate-spin text-primary-600 mx-auto" />
-              <p className="text-sm text-navy-600 font-medium">Waiting for your payment…</p>
+              <p className="text-sm text-navy-600 font-medium">
+                {phase === 'opening' ? 'Opening secure payment…' : 'Waiting for your payment…'}
+              </p>
               <p className="text-xs text-navy-400 -mt-2">
                 Complete the payment in the secure window. This page updates automatically.
               </p>
               <button
-                onClick={reopenPopup}
+                onClick={reopenOverlay}
                 className="w-full py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-navy-700 hover:bg-gray-50 transition flex items-center justify-center gap-2"
               >
                 <ExternalLink size={15} /> Reopen payment window
@@ -232,20 +287,21 @@ export function PaymentModal({
             </div>
           )}
 
-          {phase === 'popup_blocked' && (
+          {phase === 'sdk_unavailable' && (
             <div className="space-y-4 text-center">
               <span className="inline-flex w-12 h-12 bg-amber-50 rounded-full items-center justify-center">
                 <AlertTriangle size={22} className="text-amber-600" />
               </span>
-              <p className="text-sm text-navy-600 font-medium">Popup window was blocked</p>
+              <p className="text-sm text-navy-600 font-medium">Continue to secure payment</p>
               <p className="text-xs text-navy-400 -mt-2">
-                Your browser blocked the secure payment window. Click below to open it.
+                The embedded payment window could not start on this browser. Continue on the secure
+                payment page — you&apos;ll be brought right back here when it&apos;s done.
               </p>
               <button
-                onClick={reopenPopup}
+                onClick={redirectToSecurePage}
                 className="w-full py-3 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 transition flex items-center justify-center gap-2"
               >
-                <ShieldCheck size={16} /> Open Secure Checkout
+                <ShieldCheck size={16} /> Pay {formatPrice(amount)} Securely
               </button>
             </div>
           )}
@@ -268,7 +324,7 @@ export function PaymentModal({
                   {checking ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />} Check status
                 </button>
                 <button
-                  onClick={reopenPopup}
+                  onClick={reopenOverlay}
                   className="flex-1 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 transition"
                 >
                   Reopen window
@@ -283,8 +339,8 @@ export function PaymentModal({
                 <p className="text-xs text-amber-700 flex items-start gap-2">
                   <AlertTriangle size={14} className="shrink-0 mt-0.5" />
                   <span>
-                    Sandbox mode — no real money moves. Simulate the outcome of the payment below;
-                    the order is finalized exactly like a live Dodo payment.
+                    Sandbox checkout — no real money moves. Choose the outcome below; the order is
+                    finalized exactly like a live payment.
                   </span>
                 </p>
               </div>
@@ -311,7 +367,7 @@ export function PaymentModal({
               <CheckCircle2 size={44} className="text-green-600 mx-auto" />
               <p className="text-base font-bold text-navy-900">Payment successful</p>
               <p className="text-xs text-green-600 flex items-center justify-center gap-1">
-                <ShieldCheck size={13} /> Verified by Dodo Payments
+                <ShieldCheck size={13} /> Payment verified
               </p>
               <p className="text-xs text-navy-400">Taking you to your order…</p>
             </div>

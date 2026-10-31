@@ -16,7 +16,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {state.loading ? (
           // Boot state — shimmer skeletons mirror the home layout so the
           // first paint already feels like the finished page.
-          <div className="max-w-7xl mx-auto px-4" role="status" aria-label="Loading ShopMitra">
+          <div className="shell" role="status" aria-label="Loading ShopMitra">
             <BannerSkeleton />
             <section className="mt-12">
               <SkeletonLine className="h-7 w-48 mb-6" />

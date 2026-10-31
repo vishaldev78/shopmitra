@@ -1,0 +1,486 @@
+     1→'use client';
+     2→
+     3→import { useState, useEffect } from 'react';
+     4→import { BarChart3, Package, Users, ShoppingBag, TrendingUp, AlertTriangle, Edit, Trash2, Plus, Search, Image as ImageIcon, ShieldAlert } from 'lucide-react';
+     5→import { useApp, useAdminMutations } from '@/store/AppContext';
+     6→import { formatPrice, isAdminRole } from '@/lib/utils';
+     7→import type { AdminStats, AdminUserRow, Banner, Product, Category } from '@/lib/types';
+     8→
+     9→type AdminTab = 'dashboard' | 'products' | 'orders' | 'customers' | 'banners' | 'settings';
+    10→
+    11→export default function AdminDashboard() {
+    12→  const { state } = useApp();
+    13→  const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
+    14→
+    15→  if (!state.isLoggedIn || !isAdminRole(state.user?.role)) {
+    16→    return (
+    17→      <div className="max-w-lg mx-auto px-4 py-16 text-center">
+    18→        <ShieldAlert size={56} className="text-navy-300 mx-auto mb-4" strokeWidth={1.4} />
+    19→        <h1 className="text-2xl font-bold text-navy-900 mb-2">Admin Access Required</h1>
+    20→        <p className="text-navy-500 mb-4">You need admin privileges to access this page.</p>
+    21→        <p className="text-sm text-navy-400">Login as: admin@shopmitra.in / admin123</p>
+    22→      </div>
+    23→    );
+    24→  }
+    25→
+    26→  const tabs: { id: AdminTab; label: string; icon: React.ReactNode }[] = [
+    27→    { id: 'dashboard', label: 'Dashboard', icon: <BarChart3 size={16} /> },
+    28→    { id: 'products', label: 'Products', icon: <Package size={16} /> },
+    29→    { id: 'orders', label: 'Orders', icon: <ShoppingBag size={16} /> },
+    30→    { id: 'banners', label: 'Banners', icon: <ImageIcon size={16} /> },
+    31→    { id: 'customers', label: 'Customers', icon: <Users size={16} /> },
+    32→    { id: 'settings', label: 'Settings', icon: <EyeIcon /> },
+    33→  ];
+    34→
+    35→  return (
+    36→    <div className="max-w-7xl mx-auto px-4 py-6">
+    37→      <div className="flex items-center justify-between mb-6">
+    38→        <div><h1 className="text-2xl font-bold text-navy-900">Admin Dashboard</h1><p className="text-sm text-navy-500">Manage your store • Role: {state.user?.role}</p></div>
+    39→        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">● Live</span>
+    40→      </div>
+    41→
+    42→      <div className="flex gap-1 overflow-x-auto mb-6 bg-gray-100 p-1 rounded-xl">
+    43→        {tabs.map((tab) => (
+    44→          <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${activeTab === tab.id ? 'bg-white text-navy-900 shadow-sm' : 'text-navy-500 hover:text-navy-700'}`}>{tab.icon} {tab.label}</button>
+    45→        ))}
+    46→      </div>
+    47→
+    48→      {activeTab === 'dashboard' && <DashboardOverview />}
+    49→      {activeTab === 'products' && <ProductsManagement />}
+    50→      {activeTab === 'orders' && <OrdersManagement />}
+    51→      {activeTab === 'banners' && <BannersManagement />}
+    52→      {activeTab === 'customers' && <CustomersManagement />}
+    53→      {activeTab === 'settings' && <StoreSettings />}
+    54→    </div>
+    55→  );
+    56→}
+    57→
+    58→function EyeIcon() {
+    59→  return (
+    60→    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" /><circle cx="12" cy="12" r="3" /></svg>
+    61→  );
+    62→}
+    63→
+    64→function DashboardOverview() {
+    65→  const { state } = useApp();
+    66→  const [stats, setStats] = useState<AdminStats | null>(null);
+    67→  const [loading, setLoading] = useState(true);
+    68→
+    69→  useEffect(() => {
+    70→    fetch('/api/admin/stats')
+    71→      .then((r) => (r.ok ? r.json() : null))
+    72→      .then((data) => data && setStats(data.stats))
+    73→      .finally(() => setLoading(false));
+    74→  }, [state.products.length]);
+    75→
+    76→  const totalRevenue = stats?.totalRevenue ?? 0;
+    77→  const orders = stats?.recentOrders ?? [];
+    78→  const lowStockProducts = stats?.lowStock ?? [];
+    79→  const totalCustomers = stats?.totalCustomers ?? 0;
+    80→
+    81→  const statCards = [
+    82→    { label: 'Total Revenue', value: formatPrice(totalRevenue), icon: <TrendingUp size={20} />, color: 'bg-green-50 text-green-600', change: '+12.5%' },
+    83→    { label: 'Total Orders', value: (stats?.totalOrders ?? 0).toString(), icon: <ShoppingBag size={20} />, color: 'bg-blue-50 text-blue-600', change: '+8.2%' },
+    84→    { label: 'Customers', value: totalCustomers.toString(), icon: <Users size={20} />, color: 'bg-purple-50 text-purple-600', change: '+15.3%' },
+    85→    { label: 'Products', value: (stats?.totalProducts ?? 0).toString(), icon: <Package size={20} />, color: 'bg-amber-50 text-amber-600', change: `${stats?.totalProducts ?? 0} active` },
+    86→  ];
+    87→
+    88→  return (
+    89→    <div className="space-y-6">
+    90→      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    91→        {statCards.map((stat, i) => (
+    92→          <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 md:p-5">
+    93→            <div className="flex items-center justify-between mb-3">
+    94→              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${stat.color}`}>{stat.icon}</div>
+    95→              <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{stat.change}</span>
+    96→            </div>
+    97→            <p className="text-2xl font-bold text-navy-900">{stat.value}</p>
+    98→            <p className="text-sm text-navy-500">{stat.label}</p>
+    99→          </div>
+   100→        ))}
+   101→      </div>
+   102→
+   103→      <div className="grid lg:grid-cols-2 gap-6">
+   104→        <div className="bg-white border border-gray-200 rounded-xl p-5">
+   105→          <h3 className="font-bold text-navy-900 mb-4">Revenue Overview</h3>
+   106→          <div className="flex items-end gap-2 h-40">
+   107→            {[65, 45, 78, 52, 89, 67, 92, 73, 85, 60, 95, 80].map((h, i) => (
+   108→              <div key={i} className="flex-1 flex flex-col items-center gap-1">
+   109→                <div className="w-full bg-primary-500 rounded-t-sm hover:bg-primary-600 transition" style={{ height: `${h}%` }} />
+   110→                <span className="text-[9px] text-navy-400">{['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'][i]}</span>
+   111→              </div>
+   112→            ))}
+   113→          </div>
+   114→        </div>
+   115→        <div className="bg-white border border-gray-200 rounded-xl p-5">
+   116→          <h3 className="font-bold text-navy-900 mb-4">Recent Orders</h3>
+   117→          <div className="space-y-3">
+   118→            {orders.length === 0 && <p className="text-sm text-navy-400">No orders yet.</p>}
+   119→            {orders.map((order) => (
+   120→              <div key={order.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+   121→                <div><p className="text-sm font-medium text-navy-900">{order.order_number}</p><p className="text-xs text-navy-500">{order.shipping_address?.fullName || 'Guest'}</p></div>
+   122→                <div className="text-right"><p className="text-sm font-medium">{formatPrice(order.total)}</p><span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${order.status === 'delivered' ? 'bg-green-100 text-green-700' : order.status === 'shipped' ? 'bg-blue-100 text-blue-700' : order.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{order.status}</span></div>
+   123→              </div>
+   124→            ))}
+   125→          </div>
+   126→        </div>
+   127→      </div>
+   128→
+   129→      {lowStockProducts.length > 0 && (
+   130→        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
+   131→          <div className="flex items-center gap-2 mb-3"><AlertTriangle size={18} className="text-amber-600" /><h3 className="font-bold text-amber-800">Low Stock Alert</h3></div>
+   132→          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+   133→            {lowStockProducts.map((p) => (
+   134→              <div key={p.id} className="flex items-center gap-3 bg-white rounded-lg p-3">
+   135→                {p.images?.[0]?.startsWith('http') ? <img src={p.images[0]} alt="" className="w-10 h-10 rounded object-cover" /> : <span className="text-2xl">📦</span>}
+   136→                <div className="flex-1 min-w-0"><p className="text-sm font-medium text-navy-900 truncate">{p.name}</p><p className="text-xs text-amber-600 font-medium">{p.stock} units left</p></div>
+   137→              </div>
+   138→            ))}
+   139→          </div>
+   140→        </div>
+   141→      )}
+   142→      {loading && <p className="text-sm text-navy-400">Loading stats...</p>}
+   143→    </div>
+   144→  );
+   145→}
+   146→
+   147→const emptyForm = { name: '', slug: '', price: '', compare_price: '', brand: '', sku: '', stock: '', description: '', image_url: '', category_id: '' };
+   148→
+   149→function ProductsManagement() {
+   150→  const { state } = useApp();
+   151→  const { saveProduct, deleteProduct } = useAdminMutations();
+   152→  const [searchTerm, setSearchTerm] = useState('');
+   153→  const [showAddForm, setShowAddForm] = useState(false);
+   154→  const [editProduct, setEditProduct] = useState<Product | null>(null);
+   155→  const [categories, setCategories] = useState<Category[]>([]);
+   156→  const [formData, setFormData] = useState(emptyForm);
+   157→
+   158→  useEffect(() => {
+   159→    fetch('/api/categories').then((r) => r.json()).then((data) => setCategories(data.categories || []));
+   160→  }, []);
+   161→
+   162→  const filtered = state.products.filter((p) => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+   163→
+   164→  const handleSave = async () => {
+   165→    if (!formData.name || !formData.price) return;
+   166→    const ok = await saveProduct(formData, editProduct);
+   167→    if (ok) {
+   168→      setShowAddForm(false);
+   169→      setEditProduct(null);
+   170→      setFormData(emptyForm);
+   171→    }
+   172→  };
+   173→
+   174→  const handleDelete = async (productId: string) => {
+   175→    if (confirm('Are you sure you want to delete this product?')) {
+   176→      await deleteProduct(productId);
+   177→    }
+   178→  };
+   179→
+   180→  const startEdit = (product: Product) => {
+   181→    setEditProduct(product);
+   182→    setFormData({
+   183→      name: product.name,
+   184→      slug: product.slug,
+   185→      price: String(product.price),
+   186→      compare_price: product.compare_price ? String(product.compare_price) : '',
+   187→      brand: product.brand || '',
+   188→      sku: product.sku || '',
+   189→      stock: String(product.stock),
+   190→      description: product.description || '',
+   191→      image_url: product.images?.[0] || '',
+   192→      category_id: product.category_id || '',
+   193→    });
+   194→    setShowAddForm(true);
+   195→  };
+   196→
+   197→  return (
+   198→    <div className="space-y-4">
+   199→      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+   200→        <div className="relative flex-1 max-w-md">
+   201→          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-navy-400" />
+   202→          <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search products..." className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+   203→        </div>
+   204→        <button onClick={() => { setShowAddForm(true); setEditProduct(null); setFormData(emptyForm); }} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"><Plus size={14} /> Add Product</button>
+   205→      </div>
+   206→
+   207→      {showAddForm && (
+   208→        <div className="bg-white border border-gray-200 rounded-xl p-6 animate-fade-in">
+   209→          <h3 className="font-bold text-navy-900 mb-4">{editProduct ? 'Edit Product' : 'Add New Product'}</h3>
+   210→          <div className="grid sm:grid-cols-2 gap-4">
+   211→            <div><label className="block text-sm font-medium text-navy-700 mb-1">Name *</label><input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   212→            <div><label className="block text-sm font-medium text-navy-700 mb-1">Slug</label><input type="text" value={formData.slug} onChange={(e) => setFormData({ ...formData, slug: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="auto-generated if empty" /></div>
+   213→            <div><label className="block text-sm font-medium text-navy-700 mb-1">Price (₹) *</label><input type="number" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   214→            <div><label className="block text-sm font-medium text-navy-700 mb-1">Compare Price (₹)</label><input type="number" value={formData.compare_price} onChange={(e) => setFormData({ ...formData, compare_price: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   215→            <div><label className="block text-sm font-medium text-navy-700 mb-1">Brand</label><input type="text" value={formData.brand} onChange={(e) => setFormData({ ...formData, brand: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   216→            <div><label className="block text-sm font-medium text-navy-700 mb-1">SKU</label><input type="text" value={formData.sku} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   217→            <div><label className="block text-sm font-medium text-navy-700 mb-1">Stock</label><input type="number" value={formData.stock} onChange={(e) => setFormData({ ...formData, stock: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   218→            <div><label className="block text-sm font-medium text-navy-700 mb-1">Category</label>
+   219→              <select value={formData.category_id} onChange={(e) => setFormData({ ...formData, category_id: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+   220→                <option value="">Select category</option>
+   221→                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+   222→              </select>
+   223→            </div>
+   224→            <div className="sm:col-span-2"><label className="block text-sm font-medium text-navy-700 mb-1">Image URL</label><input type="text" value={formData.image_url} onChange={(e) => setFormData({ ...formData, image_url: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="https://..." /></div>
+   225→            <div className="sm:col-span-2"><label className="block text-sm font-medium text-navy-700 mb-1">Description</label><textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" /></div>
+   226→          </div>
+   227→          <div className="flex gap-3 mt-4">
+   228→            <button onClick={handleSave} className="px-6 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700">{editProduct ? 'Update' : 'Create'} Product</button>
+   229→            <button onClick={() => { setShowAddForm(false); setEditProduct(null); }} className="px-6 py-2 border border-gray-200 rounded-lg text-sm font-medium text-navy-700 hover:bg-gray-50">Cancel</button>
+   230→          </div>
+   231→        </div>
+   232→      )}
+   233→
+   234→      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+   235→        <div className="overflow-x-auto">
+   236→          <table className="w-full text-sm">
+   237→            <thead className="bg-gray-50">
+   238→              <tr>
+   239→                <th className="text-left px-4 py-3 font-medium text-navy-600">Product</th>
+   240→                <th className="text-left px-4 py-3 font-medium text-navy-600">SKU</th>
+   241→                <th className="text-right px-4 py-3 font-medium text-navy-600">Price</th>
+   242→                <th className="text-right px-4 py-3 font-medium text-navy-600">Stock</th>
+   243→                <th className="text-center px-4 py-3 font-medium text-navy-600">Actions</th>
+   244→              </tr>
+   245→            </thead>
+   246→            <tbody>
+   247→              {filtered.map((p) => (
+   248→                <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50">
+   249→                  <td className="px-4 py-3">
+   250→                    <div className="flex items-center gap-3">
+   251→                      {p.images?.[0]?.startsWith('http') ? <img src={p.images[0]} alt="" className="w-10 h-10 rounded object-cover" /> : <span className="text-xl">📦</span>}
+   252→                      <div><p className="font-medium text-navy-900 truncate max-w-[200px]">{p.name}</p><p className="text-xs text-navy-500">{p.brand}</p></div>
+   253→                    </div>
+   254→                  </td>
+   255→                  <td className="px-4 py-3 text-navy-600 font-mono text-xs">{p.sku}</td>
+   256→                  <td className="px-4 py-3 text-right font-medium text-navy-900">{formatPrice(p.price)}</td>
+   257→                  <td className="px-4 py-3 text-right"><span className={`px-2 py-0.5 rounded-full text-xs ${p.stock < 20 ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>{p.stock}</span></td>
+   258→                  <td className="px-4 py-3 text-center">
+   259→                    <div className="flex items-center justify-center gap-1">
+   260→                      <button onClick={() => startEdit(p)} aria-label="Edit product" className="p-1.5 hover:bg-gray-100 rounded text-navy-500 hover:text-amber-600"><Edit size={14} /></button>
+   261→                      <button onClick={() => handleDelete(p.id)} aria-label="Delete product" className="p-1.5 hover:bg-gray-100 rounded text-navy-500 hover:text-red-600"><Trash2 size={14} /></button>
+   262→                    </div>
+   263→                  </td>
+   264→                </tr>
+   265→              ))}
+   266→            </tbody>
+   267→          </table>
+   268→        </div>
+   269→        <div className="px-4 py-3 border-t border-gray-100"><p className="text-sm text-navy-500">Showing {filtered.length} of {state.products.length} products</p></div>
+   270→      </div>
+   271→    </div>
+   272→  );
+   273→}
+   274→
+   275→function OrdersManagement() {
+   276→  const { state } = useApp();
+   277→  const [orders, setOrders] = useState(state.orders);
+   278→  const [loading, setLoading] = useState(true);
+   279→
+   280→  useEffect(() => {
+   281→    // Admin sees all orders via scope=all
+   282→    fetch('/api/orders?scope=all')
+   283→      .then((r) => (r.ok ? r.json() : { orders: state.orders }))
+   284→      .then((data) => setOrders(data.orders || []))
+   285→      .finally(() => setLoading(false));
+   286→  }, [state.orders.length]);
+   287→
+   288→  return (
+   289→    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+   290→      <div className="overflow-x-auto">
+   291→        <table className="w-full text-sm">
+   292→          <thead className="bg-gray-50">
+   293→            <tr>
+   294→              <th className="text-left px-4 py-3 font-medium text-navy-600">Order #</th>
+   295→              <th className="text-left px-4 py-3 font-medium text-navy-600">Customer</th>
+   296→              <th className="text-left px-4 py-3 font-medium text-navy-600">Date</th>
+   297→              <th className="text-right px-4 py-3 font-medium text-navy-600">Total</th>
+   298→              <th className="text-center px-4 py-3 font-medium text-navy-600">Payment</th>
+   299→              <th className="text-center px-4 py-3 font-medium text-navy-600">Status</th>
+   300→            </tr>
+   301→          </thead>
+   302→          <tbody>
+   303→            {orders.map((order) => (
+   304→              <tr key={order.id} className="border-t border-gray-100 hover:bg-gray-50">
+   305→                <td className="px-4 py-3 font-mono text-xs font-medium text-navy-900">{order.order_number}</td>
+   306→                <td className="px-4 py-3 text-navy-700">{order.shipping_address?.fullName || 'Guest'}</td>
+   307→                <td className="px-4 py-3 text-navy-500">{new Date(order.created_at).toLocaleDateString()}</td>
+   308→                <td className="px-4 py-3 text-right font-medium text-navy-900">{formatPrice(order.total)}</td>
+   309→                <td className="px-4 py-3 text-center"><span className={`text-xs px-2 py-1 rounded-full ${order.payment_status === 'paid' ? 'bg-green-100 text-green-700' : order.payment_status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{order.payment_status}</span></td>
+   310→                <td className="px-4 py-3 text-center"><span className={`text-xs px-2 py-1 rounded-full ${order.status === 'delivered' ? 'bg-green-100 text-green-700' : order.status === 'shipped' ? 'bg-blue-100 text-blue-700' : order.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{order.status}</span></td>
+   311→              </tr>
+   312→            ))}
+   313→            {!loading && orders.length === 0 && (
+   314→              <tr><td colSpan={6} className="px-4 py-8 text-center text-navy-400">No orders yet</td></tr>
+   315→            )}
+   316→          </tbody>
+   317→        </table>
+   318→      </div>
+   319→    </div>
+   320→  );
+   321→}
+   322→
+   323→function BannersManagement() {
+   324→  const { state } = useApp();
+   325→  const { addBanner, deleteBanner, toggleBanner } = useAdminMutations();
+   326→  const [showAddForm, setShowAddForm] = useState(false);
+   327→  const [formData, setFormData] = useState({ title: '', subtitle: '', cta_text: '', cta_link: '', image_url: '', background_color: 'from-indigo-600 to-purple-600' });
+   328→
+   329→  const handleAdd = async () => {
+   330→    if (!formData.title) return;
+   331→    const ok = await addBanner(formData);
+   332→    if (ok) {
+   333→      setShowAddForm(false);
+   334→      setFormData({ title: '', subtitle: '', cta_text: '', cta_link: '', image_url: '', background_color: 'from-indigo-600 to-purple-600' });
+   335→    }
+   336→  };
+   337→
+   338→  const handleDelete = async (bannerId: string) => {
+   339→    if (confirm('Delete this banner?')) {
+   340→      await deleteBanner(bannerId);
+   341→    }
+   342→  };
+   343→
+   344→  return (
+   345→    <div className="space-y-4">
+   346→      <div className="flex justify-between items-center">
+   347→        <h2 className="text-lg font-bold text-navy-900">Banners ({state.banners.length})</h2>
+   348→        <button onClick={() => setShowAddForm(!showAddForm)} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"><Plus size={14} /> Add Banner</button>
+   349→      </div>
+   350→
+   351→      {showAddForm && (
+   352→        <div className="bg-white border border-gray-200 rounded-xl p-6 animate-fade-in">
+   353→          <h3 className="font-bold text-navy-900 mb-4">Create Banner</h3>
+   354→          <div className="grid sm:grid-cols-2 gap-4">
+   355→            <div><label className="block text-sm font-medium text-navy-700 mb-1">Title *</label><input type="text" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   356→            <div><label className="block text-sm font-medium text-navy-700 mb-1">Subtitle</label><input type="text" value={formData.subtitle} onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   357→            <div><label className="block text-sm font-medium text-navy-700 mb-1">CTA Text</label><input type="text" value={formData.cta_text} onChange={(e) => setFormData({ ...formData, cta_text: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   358→            <div><label className="block text-sm font-medium text-navy-700 mb-1">CTA Link</label><input type="text" value={formData.cta_link} onChange={(e) => setFormData({ ...formData, cta_link: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   359→            <div className="sm:col-span-2"><label className="block text-sm font-medium text-navy-700 mb-1">Image URL</label><input type="text" value={formData.image_url} onChange={(e) => setFormData({ ...formData, image_url: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   360→            <div><label className="block text-sm font-medium text-navy-700 mb-1">Background Gradient</label>
+   361→              <select value={formData.background_color} onChange={(e) => setFormData({ ...formData, background_color: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+   362→                <option value="from-indigo-600 to-purple-600">Indigo → Purple</option>
+   363→                <option value="from-emerald-600 to-teal-600">Emerald → Teal</option>
+   364→                <option value="from-amber-500 to-orange-600">Amber → Orange</option>
+   365→                <option value="from-rose-500 to-pink-600">Rose → Pink</option>
+   366→                <option value="from-navy-800 to-navy-900">Navy Dark</option>
+   367→              </select>
+   368→            </div>
+   369→          </div>
+   370→          <div className="flex gap-3 mt-4">
+   371→            <button onClick={handleAdd} className="px-6 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700">Create Banner</button>
+   372→            <button onClick={() => setShowAddForm(false)} className="px-6 py-2 border border-gray-200 rounded-lg text-sm font-medium text-navy-700 hover:bg-gray-50">Cancel</button>
+   373→          </div>
+   374→        </div>
+   375→      )}
+   376→
+   377→      <div className="grid gap-4">
+   378→        {state.banners.map((banner: Banner) => (
+   379→          <div key={banner.id} className={`bg-gradient-to-r ${banner.background_color || 'from-indigo-600 to-purple-600'} rounded-xl p-5 text-white relative overflow-hidden`}>
+   380→            {banner.image_url && <img src={banner.image_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20" />}
+   381→            <div className="relative flex justify-between items-center">
+   382→              <div>
+   383→                <h3 className="text-xl font-bold">{banner.title}</h3>
+   384→                <p className="opacity-90">{banner.subtitle}</p>
+   385→                {banner.cta_text && <span className="inline-block mt-2 px-3 py-1 bg-white/20 rounded text-sm">{banner.cta_text}</span>}
+   386→              </div>
+   387→              <div className="flex gap-2">
+   388→                <button onClick={() => toggleBanner(banner)} className={`px-3 py-1 rounded text-xs font-medium ${banner.is_active ? 'bg-green-500/30' : 'bg-red-500/30'}`}>{banner.is_active ? 'Active' : 'Inactive'}</button>
+   389→                <button onClick={() => handleDelete(banner.id)} aria-label="Delete banner" className="p-1.5 bg-white/20 rounded hover:bg-white/30"><Trash2 size={14} /></button>
+   390→              </div>
+   391→            </div>
+   392→          </div>
+   393→        ))}
+   394→      </div>
+   395→    </div>
+   396→  );
+   397→}
+   398→
+   399→function CustomersManagement() {
+   400→  const { state } = useApp();
+   401→  const [users, setUsers] = useState<AdminUserRow[]>([]);
+   402→  const [loading, setLoading] = useState(true);
+   403→
+   404→  useEffect(() => {
+   405→    fetch('/api/admin/users')
+   406→      .then((r) => (r.ok ? r.json() : { users: [] }))
+   407→      .then((data) => setUsers(data.users || []))
+   408→      .finally(() => setLoading(false));
+   409→  }, []);
+   410→
+   411→  return (
+   412→    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+   413→      <div className="overflow-x-auto">
+   414→        <table className="w-full text-sm">
+   415→          <thead className="bg-gray-50">
+   416→            <tr>
+   417→              <th className="text-left px-4 py-3 font-medium text-navy-600">Customer</th>
+   418→              <th className="text-left px-4 py-3 font-medium text-navy-600">Email</th>
+   419→              <th className="text-center px-4 py-3 font-medium text-navy-600">Role</th>
+   420→              <th className="text-right px-4 py-3 font-medium text-navy-600">Orders</th>
+   421→              <th className="text-center px-4 py-3 font-medium text-navy-600">Status</th>
+   422→            </tr>
+   423→          </thead>
+   424→          <tbody>
+   425→            {users.map((u) => (
+   426→              <tr key={u.id} className="border-t border-gray-100 hover:bg-gray-50">
+   427→                <td className="px-4 py-3"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center text-xs font-medium text-primary-700">{u.name?.split(' ').map((n) => n[0]).join('')}</div><span className="font-medium text-navy-900">{u.name}</span></div></td>
+   428→                <td className="px-4 py-3 text-navy-600">{u.email}</td>
+   429→                <td className="px-4 py-3 text-center"><span className={`text-xs px-2 py-1 rounded-full ${u.role === 'super_admin' ? 'bg-purple-100 text-purple-700' : u.role === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>{u.role}</span></td>
+   430→                <td className="px-4 py-3 text-right text-navy-700">{u.order_count}</td>
+   431→                <td className="px-4 py-3 text-center"><span className={`text-xs px-2 py-1 rounded-full ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{u.is_active ? 'Active' : 'Disabled'}</span></td>
+   432→              </tr>
+   433→            ))}
+   434→            {!loading && users.length === 0 && (
+   435→              <tr><td colSpan={5} className="px-4 py-8 text-center text-navy-400">No customers found</td></tr>
+   436→            )}
+   437→          </tbody>
+   438→        </table>
+   439→      </div>
+   440→    </div>
+   441→  );
+   442→}
+   443→
+   444→function StoreSettings() {
+   445→  const { state } = useApp();
+   446→  return (
+   447→    <div className="grid md:grid-cols-2 gap-6">
+   448→      <div className="bg-white border border-gray-200 rounded-xl p-5">
+   449→        <h3 className="font-bold text-navy-900 mb-4">Store Information</h3>
+   450→        <div className="space-y-4">
+   451→          <div><label className="block text-sm font-medium text-navy-700 mb-1">Store Name</label><input type="text" defaultValue="ShopMitra" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   452→          <div><label className="block text-sm font-medium text-navy-700 mb-1">Contact Email</label><input type="email" defaultValue="support@shopmitra.in" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   453→          <div><label className="block text-sm font-medium text-navy-700 mb-1">Currency</label><select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"><option>INR (₹)</option><option>USD ($)</option></select></div>
+   454→          <button className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700">Save Changes</button>
+   455→        </div>
+   456→      </div>
+   457→      <div className="bg-white border border-gray-200 rounded-xl p-5">
+   458→        <h3 className="font-bold text-navy-900 mb-4">Payment - Dodo Payments</h3>
+   459→        <div className="space-y-4">
+   460→          <div><label className="block text-sm font-medium text-navy-700 mb-1">Dodo API Key</label><input type="password" placeholder="Configured via DODO_PAYMENTS_API_KEY env var" disabled className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50" /></div>
+   461→          <p className="text-xs text-navy-400">Set <code className="bg-gray-100 px-1 rounded">DODO_PAYMENTS_API_KEY</code> in the server environment to enable live payments. Without it, a built-in simulated checkout is used.</p>
+   462→          <div className="flex items-center gap-2"><input type="checkbox" id="cod-enable" defaultChecked className="rounded text-primary-600" /><label htmlFor="cod-enable" className="text-sm text-navy-600">Enable Cash on Delivery</label></div>
+   463→        </div>
+   464→      </div>
+   465→      <div className="bg-white border border-gray-200 rounded-xl p-5">
+   466→        <h3 className="font-bold text-navy-900 mb-4">Database Status</h3>
+   467→        <div className="space-y-2 text-sm">
+   468→          <div className="flex justify-between"><span className="text-navy-600">SQLite + Prisma</span><span className="text-green-600 font-medium">Connected</span></div>
+   469→          <div className="flex justify-between"><span className="text-navy-600">Products</span><span className="font-medium">{state.products.length}</span></div>
+   470→          <div className="flex justify-between"><span className="text-navy-600">Orders</span><span className="font-medium">{state.orders.length}</span></div>
+   471→          <div className="flex justify-between"><span className="text-navy-600">Banners</span><span className="font-medium">{state.banners.length}</span></div>
+   472→        </div>
+   473→      </div>
+   474→      <div className="bg-white border border-gray-200 rounded-xl p-5">
+   475→        <h3 className="font-bold text-navy-900 mb-4">Shipping & Tax</h3>
+   476→        <div className="space-y-4">
+   477→          <div><label className="block text-sm font-medium text-navy-700 mb-1">Free Shipping Threshold (₹)</label><input type="number" defaultValue={999} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   478→          <div><label className="block text-sm font-medium text-navy-700 mb-1">Default Shipping Rate (₹)</label><input type="number" defaultValue={99} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   479→          <div><label className="block text-sm font-medium text-navy-700 mb-1">GST Rate (%)</label><input type="number" defaultValue={18} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   480→          <button className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700">Save Settings</button>
+   481→        </div>
+   482→      </div>
+   483→    </div>
+   484→  );
+   485→}
+   486→

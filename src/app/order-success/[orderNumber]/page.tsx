@@ -33,7 +33,7 @@ export default function OrderSuccess({ params }: { params: Promise<{ orderNumber
           <p className="text-sm text-navy-500 mt-3">Total Amount</p>
           <p className="font-bold text-navy-900">{formatPrice(order.total)}</p>
           <p className="text-sm text-navy-500 mt-3">Payment</p>
-          <p className="font-medium text-navy-900 capitalize">{order.payment_method === 'dodo' ? 'Dodo Payments' : order.payment_method === 'cod' ? 'Cash on Delivery' : order.payment_method}</p>
+          <p className="font-medium text-navy-900 capitalize">{order.payment_method === 'dodo' ? 'Online Payment (UPI / Card)' : order.payment_method === 'cod' ? 'Cash on Delivery' : order.payment_method}</p>
         </div>
       ) : (
         <div className="bg-gray-50 rounded-xl p-6 text-left mb-6">

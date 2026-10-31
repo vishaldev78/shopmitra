@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { BarChart3, Package, Users, ShoppingBag, TrendingUp, AlertTriangle, Edit, Trash2, Plus, Search, Image as ImageIcon, ShieldAlert } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { BarChart3, Package, Users, ShoppingBag, TrendingUp, AlertTriangle, Edit, Trash2, Plus, Search, Image as ImageIcon, ShieldAlert, Loader2, ShieldCheck, Ban } from 'lucide-react';
 import { useApp, useAdminMutations } from '@/store/AppContext';
 import { formatPrice, isAdminRole } from '@/lib/utils';
 import type { AdminStats, AdminUserRow, Banner, Product, Category } from '@/lib/types';
@@ -33,7 +33,7 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="shell py-6">
       <div className="flex items-center justify-between mb-6">
         <div><h1 className="text-2xl font-bold text-navy-900">Admin Dashboard</h1><p className="text-sm text-navy-500">Manage your store • Role: {state.user?.role}</p></div>
         <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">● Live</span>
@@ -272,50 +272,140 @@ function ProductsManagement() {
   );
 }
 
+const STATUS_FLOW = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'] as const;
+
+function statusPillCls(status: string): string {
+  return status === 'delivered'
+    ? 'bg-green-100 text-green-700'
+    : status === 'shipped'
+      ? 'bg-blue-100 text-blue-700'
+      : status === 'cancelled'
+        ? 'bg-red-100 text-red-700'
+        : 'bg-amber-100 text-amber-700';
+}
+
 function OrdersManagement() {
-  const { state } = useApp();
+  const { state, dispatch } = useApp();
   const [orders, setOrders] = useState(state.orders);
   const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<string>('all');
 
-  useEffect(() => {
-    // Admin sees all orders via scope=all
-    fetch('/api/orders?scope=all')
-      .then((r) => (r.ok ? r.json() : { orders: state.orders }))
+  const loadOrders = useCallback(() => {
+    return fetch('/api/orders?scope=all')
+      .then((r) => (r.ok ? r.json() : { orders: [] }))
       .then((data) => setOrders(data.orders || []))
       .finally(() => setLoading(false));
-  }, [state.orders.length]);
+  }, []);
+
+  useEffect(() => {
+    loadOrders();
+  }, [loadOrders]);
+
+  const patchOrder = async (orderNumber: string, body: Record<string, string>) => {
+    setSavingId(orderNumber);
+    try {
+      const res = await fetch(`/api/orders/${orderNumber}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Update failed');
+      setOrders((list) => list.map((o) => (o.order_number === orderNumber ? data.order : o)));
+      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'success', message: `Order ${orderNumber} updated` } });
+    } catch (error) {
+      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'error', message: (error as Error).message } });
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const visible = filter === 'all' ? orders : orders.filter((o) => o.status === filter);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="text-left px-4 py-3 font-medium text-navy-600">Order #</th>
-              <th className="text-left px-4 py-3 font-medium text-navy-600">Customer</th>
-              <th className="text-left px-4 py-3 font-medium text-navy-600">Date</th>
-              <th className="text-right px-4 py-3 font-medium text-navy-600">Total</th>
-              <th className="text-center px-4 py-3 font-medium text-navy-600">Payment</th>
-              <th className="text-center px-4 py-3 font-medium text-navy-600">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map((order) => (
-              <tr key={order.id} className="border-t border-gray-100 hover:bg-gray-50">
-                <td className="px-4 py-3 font-mono text-xs font-medium text-navy-900">{order.order_number}</td>
-                <td className="px-4 py-3 text-navy-700">{order.shipping_address?.fullName || 'Guest'}</td>
-                <td className="px-4 py-3 text-navy-500">{new Date(order.created_at).toLocaleDateString()}</td>
-                <td className="px-4 py-3 text-right font-medium text-navy-900">{formatPrice(order.total)}</td>
-                <td className="px-4 py-3 text-center"><span className={`text-xs px-2 py-1 rounded-full ${order.payment_status === 'paid' ? 'bg-green-100 text-green-700' : order.payment_status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{order.payment_status}</span></td>
-                <td className="px-4 py-3 text-center"><span className={`text-xs px-2 py-1 rounded-full ${order.status === 'delivered' ? 'bg-green-100 text-green-700' : order.status === 'shipped' ? 'bg-blue-100 text-blue-700' : order.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{order.status}</span></td>
-              </tr>
-            ))}
-            {!loading && orders.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-navy-400">No orders yet</td></tr>
-            )}
-          </tbody>
-        </table>
+    <div className="space-y-4">
+      {/* Status filter chips */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1">
+        {['all', ...STATUS_FLOW].map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap capitalize transition ${filter === f ? 'bg-navy-900 text-white' : 'bg-gray-100 text-navy-600 hover:bg-gray-200'}`}
+          >
+            {f} {f !== 'all' && `(${orders.filter((o) => o.status === f).length})`}
+          </button>
+        ))}
       </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="text-left px-4 py-3 font-medium text-navy-600">Order #</th>
+                <th className="text-left px-4 py-3 font-medium text-navy-600">Customer</th>
+                <th className="text-left px-4 py-3 font-medium text-navy-600">Date</th>
+                <th className="text-right px-4 py-3 font-medium text-navy-600">Total</th>
+                <th className="text-center px-4 py-3 font-medium text-navy-600">Payment</th>
+                <th className="text-center px-4 py-3 font-medium text-navy-600">Status</th>
+                <th className="text-center px-4 py-3 font-medium text-navy-600">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((order) => (
+                <tr key={order.id} className="border-t border-gray-100 hover:bg-gray-50">
+                  <td className="px-4 py-3 font-mono text-xs font-medium text-navy-900">{order.order_number}</td>
+                  <td className="px-4 py-3 text-navy-700">
+                    <p>{order.shipping_address?.fullName || 'Guest'}</p>
+                    <p className="text-[11px] text-navy-400">{order.payment_method === 'cod' ? 'COD' : 'Prepaid'}</p>
+                  </td>
+                  <td className="px-4 py-3 text-navy-500 whitespace-nowrap">{new Date(order.created_at).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-right font-medium text-navy-900">{formatPrice(order.total)}</td>
+                  <td className="px-4 py-3 text-center">
+                    {order.payment_method === 'cod' ? (
+                      order.payment_status === 'paid' ? (
+                        <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">collected</span>
+                      ) : (
+                        <button
+                          onClick={() => patchOrder(order.order_number, { payment_status: 'paid' })}
+                          disabled={savingId === order.order_number}
+                          className="text-xs px-2.5 py-1 rounded-full bg-green-600 text-white hover:bg-green-700 transition disabled:opacity-50"
+                        >
+                          Mark paid
+                        </button>
+                      )
+                    ) : (
+                      <span className={`text-xs px-2 py-1 rounded-full ${order.payment_status === 'paid' ? 'bg-green-100 text-green-700' : order.payment_status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{order.payment_status}</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`text-xs px-2 py-1 rounded-full ${statusPillCls(order.status)}`}>{order.status}</span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <select
+                        value={order.status}
+                        disabled={savingId === order.order_number}
+                        onChange={(e) => patchOrder(order.order_number, { status: e.target.value })}
+                        className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
+                        aria-label={`Update status for ${order.order_number}`}
+                      >
+                        {STATUS_FLOW.map((s) => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      {savingId === order.order_number && <Loader2 size={13} className="animate-spin text-primary-600" />}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {!loading && visible.length === 0 && (
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-navy-400">No orders in this view</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p className="text-xs text-navy-400">Cancelling an order returns reserved stock automatically; re-opening re-reserves it when available.</p>
     </div>
   );
 }
@@ -397,16 +487,41 @@ function BannersManagement() {
 }
 
 function CustomersManagement() {
-  const { state } = useApp();
+  const { state, dispatch } = useApp();
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const isSuperAdmin = state.user?.role === 'super_admin';
 
-  useEffect(() => {
-    fetch('/api/admin/users')
+  const loadUsers = useCallback(() => {
+    return fetch('/api/admin/users')
       .then((r) => (r.ok ? r.json() : { users: [] }))
       .then((data) => setUsers(data.users || []))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
+  const patchUser = async (id: string, body: Record<string, string | boolean>, okMessage: string) => {
+    setSavingId(id);
+    try {
+      const res = await fetch(`/api/admin/users/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Update failed');
+      setUsers((list) => list.map((u) => (u.id === id ? data.user : u)));
+      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'success', message: okMessage } });
+    } catch (error) {
+      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'error', message: (error as Error).message } });
+    } finally {
+      setSavingId(null);
+    }
+  };
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -419,20 +534,66 @@ function CustomersManagement() {
               <th className="text-center px-4 py-3 font-medium text-navy-600">Role</th>
               <th className="text-right px-4 py-3 font-medium text-navy-600">Orders</th>
               <th className="text-center px-4 py-3 font-medium text-navy-600">Status</th>
+              <th className="text-center px-4 py-3 font-medium text-navy-600">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
-              <tr key={u.id} className="border-t border-gray-100 hover:bg-gray-50">
-                <td className="px-4 py-3"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center text-xs font-medium text-primary-700">{u.name?.split(' ').map((n) => n[0]).join('')}</div><span className="font-medium text-navy-900">{u.name}</span></div></td>
-                <td className="px-4 py-3 text-navy-600">{u.email}</td>
-                <td className="px-4 py-3 text-center"><span className={`text-xs px-2 py-1 rounded-full ${u.role === 'super_admin' ? 'bg-purple-100 text-purple-700' : u.role === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>{u.role}</span></td>
-                <td className="px-4 py-3 text-right text-navy-700">{u.order_count}</td>
-                <td className="px-4 py-3 text-center"><span className={`text-xs px-2 py-1 rounded-full ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{u.is_active ? 'Active' : 'Disabled'}</span></td>
-              </tr>
-            ))}
+            {users.map((u) => {
+              const self = u.id === state.user?.id;
+              const manageable = u.role === 'customer' || isSuperAdmin;
+              return (
+                <tr key={u.id} className="border-t border-gray-100 hover:bg-gray-50">
+                  <td className="px-4 py-3"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center text-xs font-medium text-primary-700">{u.name?.split(' ').map((n) => n[0]).join('')}</div><span className="font-medium text-navy-900">{u.name}{self && <span className="text-[10px] text-navy-400 ml-1">(you)</span>}</span></div></td>
+                  <td className="px-4 py-3 text-navy-600">{u.email}</td>
+                  <td className="px-4 py-3 text-center">
+                    {isSuperAdmin && !self ? (
+                      <select
+                        value={u.role}
+                        disabled={savingId === u.id}
+                        onChange={(e) => patchUser(u.id, { role: e.target.value }, `${u.name} is now ${e.target.value.replace('_', ' ')}`)}
+                        className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
+                        aria-label={`Change role for ${u.email}`}
+                      >
+                        <option value="customer">customer</option>
+                        <option value="admin">admin</option>
+                        <option value="super_admin">super_admin</option>
+                      </select>
+                    ) : (
+                      <span className={`text-xs px-2 py-1 rounded-full ${u.role === 'super_admin' ? 'bg-purple-100 text-purple-700' : u.role === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>{u.role}</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right text-navy-700">{u.order_count}</td>
+                  <td className="px-4 py-3 text-center"><span className={`text-xs px-2 py-1 rounded-full ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{u.is_active ? 'Active' : 'Disabled'}</span></td>
+                  <td className="px-4 py-3 text-center">
+                    {self ? (
+                      <span className="text-[11px] text-navy-300">—</span>
+                    ) : manageable ? (
+                      u.is_active ? (
+                        <button
+                          onClick={() => patchUser(u.id, { is_active: false }, `${u.name} can no longer sign in`)}
+                          disabled={savingId === u.id}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+                        >
+                          {savingId === u.id ? <Loader2 size={12} className="animate-spin" /> : <Ban size={12} />} Disable
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => patchUser(u.id, { is_active: true }, `${u.name} re-activated`)}
+                          disabled={savingId === u.id}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-green-700 hover:text-green-800 disabled:opacity-50"
+                        >
+                          {savingId === u.id ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />} Enable
+                        </button>
+                      )
+                    ) : (
+                      <span className="text-[11px] text-navy-300">super admin only</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
             {!loading && users.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-navy-400">No customers found</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-navy-400">No customers found</td></tr>
             )}
           </tbody>
         </table>
@@ -455,11 +616,23 @@ function StoreSettings() {
         </div>
       </div>
       <div className="bg-white border border-gray-200 rounded-xl p-5">
-        <h3 className="font-bold text-navy-900 mb-4">Payment - Dodo Payments</h3>
+        <h3 className="font-bold text-navy-900 mb-4">Payments</h3>
         <div className="space-y-4">
-          <div><label className="block text-sm font-medium text-navy-700 mb-1">Dodo API Key</label><input type="password" placeholder="Configured via DODO_PAYMENTS_API_KEY env var" disabled className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50" /></div>
-          <p className="text-xs text-navy-400">Set <code className="bg-gray-100 px-1 rounded">DODO_PAYMENTS_API_KEY</code> in the server environment to enable live payments. Without it, a built-in simulated checkout is used.</p>
-          <div className="flex items-center gap-2"><input type="checkbox" id="cod-enable" defaultChecked className="rounded text-primary-600" /><label htmlFor="cod-enable" className="text-sm text-navy-600">Enable Cash on Delivery</label></div>
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div>
+              <p className="text-sm font-medium text-navy-900">Online Payments</p>
+              <p className="text-xs text-navy-500">UPI · Cards · Net Banking · Wallets</p>
+            </div>
+            <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded-full">Enabled</span>
+          </div>
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div>
+              <p className="text-sm font-medium text-navy-900">Cash on Delivery</p>
+              <p className="text-xs text-navy-500">Collect payment when the order is delivered</p>
+            </div>
+            <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded-full">Enabled</span>
+          </div>
+          <p className="text-xs text-navy-400">Gateway credentials live in the server environment — they are never exposed to the storefront or this dashboard.</p>
         </div>
       </div>
       <div className="bg-white border border-gray-200 rounded-xl p-5">

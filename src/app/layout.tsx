@@ -28,8 +28,8 @@ export const metadata: Metadata = {
     template: "%s | ShopMitra",
   },
   description:
-    "ShopMitra — Your trusted shopping friend. Premium products at best prices with secure Dodo Payments, free shipping above ₹999 and easy 30-day returns.",
-  keywords: ["ShopMitra", "online shopping", "ecommerce", "electronics", "fashion", "India", "Dodo Payments"],
+    "ShopMitra — Your trusted shopping friend. Premium products at best prices with UPI, cards and cash on delivery, free shipping above ₹999 and easy 30-day returns.",
+  keywords: ["ShopMitra", "online shopping", "ecommerce", "electronics", "fashion", "India", "cash on delivery", "UPI"],
   authors: [{ name: "ShopMitra" }],
   openGraph: {
     title: "ShopMitra — Your Shopping Friend",

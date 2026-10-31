@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 });
     }
     if (order.paymentMethod !== 'dodo') {
-      return NextResponse.json({ success: false, error: 'Order is not a Dodo payment order' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Order is not an online payment order' }, { status: 400 });
     }
     // Paid orders can never be paid again. Failed orders MAY retry: stock was
     // never decremented for them (only markOrderPaid decrements stock).
@@ -62,45 +62,31 @@ export async function POST(req: NextRequest) {
     const cancelUrl = `${origin}/payment-cancel?order_number=${encodeURIComponent(order.orderNumber)}`;
 
     // 3) Real Dodo checkout session
-    // Dodo requires registered product ids (pdt_...). Store products are
-    // auto-synced: any product without a Dodo mapping is created on Dodo
-    // (products:write) once, then cached in the dodoProductId column.
-    const payable = order.items.every((i) => Boolean(i.productId));
-    if (config && payable) {
-      const shipping = JSON.parse(order.shippingAddress || '{}') as { fullName?: string };
+    // The order total (items − coupon + delivery + GST) is the amount of
+    // record, so we sync ONE Dodo product whose price equals `order.total`
+    // and check out with a single line item. Syncing catalog products would
+    // charge the pre-tax subtotal and drift from what the customer agreed to
+    // pay. The mapping is cached on the order, so retries are idempotent.
+    if (config) {
+      let dodoProductId = order.dodoProductId;
 
-      // 3a) Ensure every ordered product exists on Dodo (auto-sync, cached)
-      const cart: { product_id: string; quantity: number }[] = [];
-      let syncError: string | null = null;
-      for (const item of order.items) {
-        const product = await db.product.findUnique({ where: { id: item.productId as string } });
-        if (!product) {
-          syncError = `Product ${item.productName} no longer exists`;
-          break;
+      if (!dodoProductId) {
+        const created = await createDodoProduct(config, {
+          name: `Order ${order.orderNumber}`,
+          description: `ShopMitra order ${order.orderNumber} — total including GST and delivery charges`,
+          price: order.total,
+          currency: 'INR',
+        });
+        if (created.ok) {
+          dodoProductId = created.data.product_id;
+          await db.order.update({ where: { id: order.id }, data: { dodoProductId } });
         }
-        let dodoId = product.dodoProductId;
-        if (!dodoId) {
-          const created = await createDodoProduct(config, {
-            name: product.name,
-            description: product.shortDescription ?? product.description ?? undefined,
-            price: product.price,
-            currency: 'INR',
-          });
-          if (created.ok) {
-            dodoId = created.data.product_id;
-            await db.product.update({ where: { id: product.id }, data: { dodoProductId: dodoId } });
-          } else {
-            syncError = `Product sync failed for ${product.name} (${created.code}: ${created.message})`;
-            break;
-          }
-        }
-        cart.push({ product_id: dodoId, quantity: item.quantity });
       }
 
-      // 3b) Create the hosted checkout session
-      if (!syncError) {
+      if (dodoProductId) {
+        const shipping = JSON.parse(order.shippingAddress || '{}') as { fullName?: string };
         const result = await createDodoCheckout(config, {
-          product_cart: cart,
+          product_cart: [{ product_id: dodoProductId, quantity: 1 }],
           customer: {
             email: customer_email || user?.email || undefined,
             name: customer_name || shipping.fullName || user?.name || undefined,
@@ -123,14 +109,15 @@ export async function POST(req: NextRequest) {
             session_id: result.data.session_id,
             payment_id: result.data.payment_id,
             provider: 'dodo',
+            payment_mode: config.testMode ? 'test' : 'live',
           });
         }
-        syncError = `${result.code}: ${result.message}`;
+        // Real integration attempted but failed — surface the reason, then keep
+        // the demo usable via the simulated checkout.
+        console.error('dodo checkout failed:', `${result.code}: ${result.message}`);
+      } else {
+        console.error('dodo checkout failed: order product sync failed');
       }
-
-      // Real integration attempted but failed — surface the reason, then keep
-      // the demo usable via the simulated checkout.
-      console.error('dodo checkout failed:', syncError);
       return simulatedCheckout(order);
     }
 

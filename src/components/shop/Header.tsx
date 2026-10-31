@@ -57,10 +57,10 @@ export function Header() {
     <header className="sticky top-0 z-40 bg-white border-b border-gray-100 shadow-sm">
       {/* Top bar */}
       <div className="bg-gradient-to-r from-navy-900 via-indigo-900 to-navy-900 text-white text-xs py-1.5">
-        <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
-          <span className="flex items-center gap-1.5">
-            <Truck size={13} className="shrink-0" /> Free shipping on orders above ₹999
-            <span className="opacity-50 px-1">·</span> Secure Dodo Payments
+        <div className="shell flex justify-between items-center">
+          <span className="flex items-center gap-1.5 min-w-0 truncate">
+            <Truck size={13} className="shrink-0" /> <span className="truncate">Free shipping above ₹999</span>
+            <span className="hidden sm:inline"><span className="opacity-50 px-1">·</span> Secure Online Payments</span>
             <span className="hidden md:inline"><span className="opacity-50 px-1">·</span> Easy 30-day returns</span>
           </span>
           <div className="hidden sm:flex gap-4">
@@ -71,7 +71,7 @@ export function Header() {
       </div>
 
       {/* Main header */}
-      <div className="max-w-7xl mx-auto px-4 py-3">
+      <div className="shell py-3">
         <div className="flex items-center gap-4">
           {/* Mobile menu button */}
           <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label="Toggle menu" className="lg:hidden p-2 hover:bg-gray-100 rounded-lg">

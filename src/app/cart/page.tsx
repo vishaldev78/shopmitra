@@ -28,7 +28,7 @@ export default function Cart() {
 
   if (state.cart.length === 0) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-16 text-center">
+      <div className="shell py-16 text-center">
         <ShoppingBag size={72} className="text-navy-300 mx-auto mb-6" strokeWidth={1.2} />
         <h1 className="text-2xl font-bold text-navy-900 mb-2">Your cart is empty</h1>
         <p className="text-navy-500 mb-6">Looks like you haven&apos;t added anything yet.</p>
@@ -38,7 +38,7 @@ export default function Cart() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="shell py-6">
       <h1 className="text-2xl font-bold text-navy-900 mb-6">Shopping Cart ({state.cart.reduce((s, i) => s + i.quantity, 0)} items)</h1>
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-4">
@@ -102,7 +102,7 @@ export default function Cart() {
               <div className="flex justify-between text-lg"><span className="font-bold text-navy-900">Total</span><span className="font-bold text-navy-900">{formatPrice(totals.total)}</span></div>
             </div>
             <Link href="/checkout" className="block w-full mt-6 py-3 bg-primary-600 text-white text-center rounded-xl font-semibold hover:bg-primary-700 transition">Proceed to Checkout <ArrowRight size={16} className="inline ml-1" /></Link>
-            <div className="mt-4 flex items-center justify-center gap-4 text-xs text-navy-400"><span className="flex items-center gap-1"><Lock size={12} /> Secure Checkout</span><span className="flex items-center gap-1"><ShieldCheck size={12} /> Dodo Payments</span></div>
+            <div className="mt-4 flex items-center justify-center gap-4 text-xs text-navy-400"><span className="flex items-center gap-1"><Lock size={12} /> Secure Checkout</span><span className="flex items-center gap-1"><ShieldCheck size={12} /> UPI · Cards · COD</span></div>
           </div>
         </div>
       </div>

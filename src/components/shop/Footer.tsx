@@ -38,14 +38,14 @@ export function Footer() {
 
   return (
     <footer className="bg-navy-900 text-white mt-12">
-      <div className="max-w-7xl mx-auto px-4 py-12">
+      <div className="shell py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand */}
           <div>
             <div className="mb-4">
               <Logo size="md" />
             </div>
-            <p className="text-navy-300 text-sm leading-relaxed">Your shopping friend — premium products at unbeatable prices with exceptional service and secure Dodo Payments.</p>
+            <p className="text-navy-300 text-sm leading-relaxed">Your shopping friend — premium products at unbeatable prices with exceptional service and secure online payments.</p>
             <div className="flex gap-3 mt-4">
               {['facebook', 'twitter', 'instagram', 'youtube'].map(social => (
                 <a key={social} href="#" aria-label={social} className="w-9 h-9 bg-navy-800 rounded-lg flex items-center justify-center hover:bg-primary-600 transition text-sm">

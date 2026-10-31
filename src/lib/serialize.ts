@@ -1,4 +1,4 @@
-import type { Product, Order, Banner, Category, OrderItem, AdminUserRow, ShippingAddress } from '@/lib/types';
+import type { Product, Order, Banner, Category, OrderItem, AdminUserRow, ShippingAddress, SavedAddress } from '@/lib/types';
 
 type AnyRecord = Record<string, unknown>;
 
@@ -90,6 +90,22 @@ export function serializeUserRow(u: AnyRecord & { _count?: { orders?: number } }
     is_active: Boolean(u.isActive),
     created_at: (u.createdAt as Date).toISOString(),
     order_count: Number(u._count?.orders ?? 0),
+  };
+}
+
+export function serializeAddress(a: AnyRecord): SavedAddress {
+  return {
+    id: a.id as string,
+    label: (a.label as string) || 'Home',
+    fullName: a.fullName as string,
+    phone: a.phone as string,
+    addressLine1: a.addressLine1 as string,
+    addressLine2: (a.addressLine2 as string) || '',
+    city: a.city as string,
+    state: a.state as string,
+    postalCode: a.postalCode as string,
+    country: (a.country as string) || 'India',
+    isDefault: Boolean(a.isDefault),
   };
 }
 

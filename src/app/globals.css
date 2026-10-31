@@ -97,6 +97,22 @@
   box-sizing: border-box;
 }
 
+/* Site-wide content shell — marketplace-style centered column.
+   92% on phones, 86% on tablets, 80% on desktop (capped for ultrawide). */
+.shell {
+  width: 92%;
+  margin-inline: auto;
+}
+@media (min-width: 640px) {
+  .shell { width: 86%; }
+}
+@media (min-width: 1024px) {
+  .shell { width: 80%; }
+}
+@media (min-width: 1600px) {
+  .shell { width: 80%; max-width: 1560px; }
+}
+
 body {
   font-family: var(--font-inter), 'Inter', system-ui, -apple-system, sans-serif;
   color: var(--color-navy-900);

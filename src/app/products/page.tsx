@@ -58,7 +58,7 @@ function ProductsContent() {
   const activeCategory = categories.find((c) => c.slug === category);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="shell py-6">
       <nav className="flex items-center gap-2 text-sm text-navy-500 mb-6">
         <Link href="/" className="hover:text-primary-600">Home</Link><span>/</span>
         <span className="text-navy-900 font-medium">{search ? `Search: "${search}"` : activeCategory?.name || 'All Products'}</span>
@@ -134,7 +134,7 @@ function ProductsContent() {
 
 export default function Products() {
   return (
-    <Suspense fallback={<div className="max-w-7xl mx-auto px-4 py-20 text-center"><div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto mb-4" /><p className="text-navy-500">Loading products...</p></div>}>
+    <Suspense fallback={<div className="shell py-20 text-center"><div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto mb-4" /><p className="text-navy-500">Loading products...</p></div>}>
       <ProductsContent />
     </Suspense>
   );

@@ -26,7 +26,7 @@ export default function ProductDetail({ params }: { params: Promise<{ slug: stri
 
   if (!product) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-16 text-center">
+      <div className="shell py-16 text-center">
         <PackageSearch size={56} className="text-navy-300 mx-auto mb-4" />
         <h1 className="text-2xl font-bold text-navy-900 mb-2">Product Not Found</h1>
         <p className="text-sm text-navy-500 mb-6">It may have been removed, or the link is incorrect.</p>
@@ -51,7 +51,7 @@ export default function ProductDetail({ params }: { params: Promise<{ slug: stri
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="shell py-6">
       <nav className="flex items-center gap-2 text-sm text-navy-500 mb-6 flex-wrap">
         <Link href="/" className="hover:text-primary-600">Home</Link><ChevronRight size={14} />
         <Link href="/products" className="hover:text-primary-600">Products</Link><ChevronRight size={14} />

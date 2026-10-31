@@ -16,6 +16,25 @@ model User {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   orders       Order[]
+  addresses    Address[]
+}
+
+model Address {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName     String
+  phone        String
+  addressLine1 String
+  addressLine2 String   @default("")
+  city         String
+  state        String
+  postalCode   String
+  country      String   @default("India")
+  label        String   @default("Home") // Home | Work | Other
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model Category {
@@ -66,6 +85,7 @@ model Order {
   paymentStatus   String      @default("pending") // pending | paid | failed
   paymentMethod   String      @default("cod") // cod | dodo
   paymentId       String?
+  dodoProductId   String?     // Dodo product id representing this order's total (synced on checkout)
   couponCode      String?
   shippingAddress String // JSON object
   createdAt       DateTime    @default(now())

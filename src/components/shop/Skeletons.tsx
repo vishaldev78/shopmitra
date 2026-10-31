@@ -71,7 +71,7 @@ export function BannerSkeleton() {
 /** Product detail page placeholder. */
 export function ProductDetailSkeleton() {
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6" role="status" aria-label="Loading product">
+    <div className="shell py-6" role="status" aria-label="Loading product">
       <SkeletonLine className="h-4 w-48 mb-6" />
       <div className="grid lg:grid-cols-2 gap-8">
         <div className="aspect-square skeleton rounded-2xl" aria-hidden="true" />

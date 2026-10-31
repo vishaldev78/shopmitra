@@ -141,7 +141,7 @@ export function FAQ() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
   const faqs = [
     { q: 'How do I place an order?', a: 'Browse products, add items to your cart, proceed to checkout, enter your shipping details, choose a payment method, and confirm your order. It\'s that simple!' },
-    { q: 'What payment methods do you accept?', a: 'We accept Cash on Delivery (COD), Dodo Payments (UPI, credit/debit cards, net banking, wallets), and other popular payment methods.' },
+    { q: 'What payment methods do you accept?', a: 'We accept Cash on Delivery (COD), UPI (PhonePe, Google Pay, Paytm and other UPI apps), credit/debit cards, net banking and wallets.' },
     { q: 'How long does delivery take?', a: 'Standard delivery takes 3-5 business days. Express delivery (1-2 days) is available for select pin codes at an additional charge.' },
     { q: 'What is your return policy?', a: 'We offer a 30-day easy return policy for most products. Items must be unused, in original packaging, with tags intact. Refunds are processed within 5-7 business days.' },
     { q: 'How can I track my order?', a: 'Go to "Track Order" in the header or your account dashboard. Enter your order number to see real-time status updates.' },
