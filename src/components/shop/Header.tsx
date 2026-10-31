@@ -88,6 +88,23 @@ export function Header() {
             </span>
           </Link>
 
+          {/* Search bar — full-width second row on phones (Meesho style), inline on desktop.
+              Lives before the actions in DOM: desktop keeps the natural order
+              (logo · search · icons at far right), phones wrap it below via order-last. */}
+          <form onSubmit={handleSearch} className="order-last w-full lg:order-none lg:w-auto lg:flex-1 lg:max-w-2xl lg:mx-2">
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search for products, brands and more"
+                aria-label="Search products"
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-[15px] font-medium text-navy-900 placeholder:text-gray-500 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
+              />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+            </div>
+          </form>
+
           {/* Right actions — profile · wishlist · cart pinned to the far right on every device */}
           <div className="ml-auto flex items-center gap-0.5 sm:gap-1.5 shrink-0">
             {/* User menu */}
@@ -159,21 +176,6 @@ export function Header() {
               )}
             </Link>
           </div>
-
-          {/* Search bar — full-width second row on phones (Meesho style), inline on desktop */}
-          <form onSubmit={handleSearch} className="order-last w-full lg:order-none lg:w-auto lg:flex-1 lg:max-w-2xl lg:mx-2">
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search for products, brands and more"
-                aria-label="Search products"
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-[15px] font-medium text-navy-900 placeholder:text-gray-500 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
-              />
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-            </div>
-          </form>
         </div>
 
         {/* Navigation */}

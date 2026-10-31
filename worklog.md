@@ -117,3 +117,26 @@ Stage Summary:
 - De-AI / branding sweep: last user-visible gateway name removed everywhere (Header, Footer, cart, home features, order-success, PaymentReturn, FAQ/StaticPages, layout metadata, admin); z-ai-web-dev-sdk dependency removed from package.json; no Z.AI/Z.ai strings anywhere in app code
 - New page /account/addresses (header link was dangling): full saved-address manager (add/edit/remove, default auto-handling, empty state)
 - Verification: 14/14 API payment tests PASS (real cks_ session created with the write key, webhook signature, idempotency, stock, COD); browser E2E — guest /checkout → /login?redirect=/checkout wall ✓, login → back to checkout ✓, address saved → shown as card with Edit ✓ (form never re-asked), UPI/COD options with brand marks ✓, COD order placed → /order-success ✓, admin cancelled stale order → toast + cancelled pill + filter counts ✓, customers tab ✓, mobile 390px home/checkout/sticky-bar ✓; lint clean; zero runtime errors in dev.log
+
+## Stage 6 — Right-aligned navbar icons, bold logo, FTIY fix, Resend email, Neon PostgreSQL (2026-10-31)
+
+- Header rebuilt (src/components/shop/Header.tsx):
+  - Profile / Wishlist / Cart pinned to the FAR RIGHT on every device (ml-auto group); wishlist no longer hidden on phones (was `hidden sm:block`)
+  - Logo now visible on mobile too — compact gradient wordmark (xs, no tagline) on phones, full lockup with tagline on ≥sm
+  - Search: own full-width row on phones (Meesho style, flex-wrap + order-last), inline on desktop (logo · search · icons); DOM order fixed so icons truly touch the right edge (verified gap = shell margin only)
+  - Search text clarity: 15px medium navy input text, gray-500 placeholder, visible border + focus ring
+- Footer FTIY mystery solved: the social squares rendered first letters F/T/I/Y — replaced with real Lucide Facebook/Twitter/Instagram/YouTube icons with aria-labels
+- Logo redesigned (src/components/shop/Logo.tsx): extrabold (800) Dancing Script wordmark in new brand gradient orange→rose→pink (#f97316→#f43f5e→#db2777), new storefront-glyph mark (awning + door, thicker strokes), sizes xs/sm/md/lg + tagline prop; header/footer both use it
+- Resend transactional email (Resend SDK):
+  - prisma EmailLog model (to/subject/template/status/error/orderId + index)
+  - src/lib/mailer.ts — Resend send when RESEND_API_KEY set, else dev-log mode; every attempt persisted to EmailLog; fire-and-forget (email can never break checkout/admin)
+  - src/lib/emails.ts — inline-styled, mobile-safe HTML templates: placed / confirmed (payment received) / shipped / delivered / cancelled with order summary, totals, coupon line, Track Order CTA
+  - Hooks: COD order → placed email; markOrderPaid → confirmed email exactly once (wasPending guard, shared by confirm route + webhook + admin); markOrderFailed → cancelled; admin PATCH → shipped/delivered/cancelled/manual-confirm with duplicate-suppression when payment path already emailed
+- Database moved to PostgreSQL/Neon:
+  - prisma provider sqlite → postgresql; schema pushed to Postgres 18, seed re-run
+  - scripts/db-up.mjs — idempotent local PostgreSQL bootstrapper (initdb + pg_ctl + createdb using portable binaries in .sandbox/pg, no root needed); no-op when DATABASE_URL is remote (Neon)
+  - scripts/with-env.mjs — project env runner: .env wins over inherited shell vars (sandbox had stale sqlite DATABASE_URL), cross-platform spawn (fixes Windows cmd `| tee` breakage), --log mirrors dev.log
+  - package.json scripts: dev/build/db:*/seed/studio all env-safe + `db:seed`, `db:up`, engines>=18.18, prisma.seed=tsx; tsx + resend deps added
+  - .env: local sandbox Postgres URL + Resend vars; .env.example: full Neon/Resend/Dodo template with comments
+- VS Code easy-run: README.md (quick start, Neon 60s setup, Resend + Dodo setup, scripts/env tables, structure, demo credentials/coupons); .gitignore + .env/.sandbox/logs
+- Verification: lint clean; 14/14 payment tests PASS on Postgres incl. REAL Dodo checkout session (cks_...); browser E2E — mobile 390px (logo+icons right+search row) ✓, desktop (icons flush right, footer social icons) ✓, COD order SM-MVW6887W-NAMI placed with saved address + PIN autofill (Bangalore North/Karnataka via postalpincode.in) ✓, EmailLog rows order.placed → order.shipped → order.delivered on every admin status change ✓, addresses page ✓; test orders cleaned (demo-account order kept as demo data)
