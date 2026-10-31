@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BarChart3, Package, Users, ShoppingBag, TrendingUp, AlertTriangle, Edit, Trash2, Plus, Search, Image as ImageIcon } from 'lucide-react';
+import { BarChart3, Package, Users, ShoppingBag, TrendingUp, AlertTriangle, Edit, Trash2, Plus, Search, Image as ImageIcon, ShieldAlert } from 'lucide-react';
 import { useApp, useAdminMutations } from '@/store/AppContext';
 import { formatPrice, isAdminRole } from '@/lib/utils';
 import type { AdminStats, AdminUserRow, Banner, Product, Category } from '@/lib/types';
@@ -15,7 +15,7 @@ export default function AdminDashboard() {
   if (!state.isLoggedIn || !isAdminRole(state.user?.role)) {
     return (
       <div className="max-w-lg mx-auto px-4 py-16 text-center">
-        <div className="text-6xl mb-4">🔒</div>
+        <ShieldAlert size={56} className="text-navy-300 mx-auto mb-4" strokeWidth={1.4} />
         <h1 className="text-2xl font-bold text-navy-900 mb-2">Admin Access Required</h1>
         <p className="text-navy-500 mb-4">You need admin privileges to access this page.</p>
         <p className="text-sm text-navy-400">Login as: admin@shopmitra.in / admin123</p>

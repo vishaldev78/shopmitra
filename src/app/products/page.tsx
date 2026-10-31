@@ -3,9 +3,10 @@
 import { Suspense, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { SlidersHorizontal, X } from 'lucide-react';
+import { SlidersHorizontal, X, SearchX } from 'lucide-react';
 import { useApp } from '@/store/AppContext';
 import { ProductCard } from '@/components/shop/ProductCard';
+import { ProductGridSkeleton } from '@/components/shop/Skeletons';
 
 function ProductsContent() {
   const { state, dispatch } = useApp();
@@ -102,8 +103,15 @@ function ProductsContent() {
         </aside>
 
         <div className="flex-1">
-          {filteredProducts.length === 0 ? (
-            <div className="text-center py-16"><div className="text-6xl mb-4">🔍</div><h3 className="text-xl font-semibold text-navy-900 mb-2">No products found</h3><button onClick={() => router.push('/products')} className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium">Clear Filters</button></div>
+          {state.loading ? (
+            <ProductGridSkeleton count={9} />
+          ) : filteredProducts.length === 0 ? (
+            <div className="text-center py-16">
+              <SearchX size={56} className="text-navy-300 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-navy-900 mb-2">No products found</h3>
+              <p className="text-sm text-navy-500 mb-6">Try adjusting your filters or search for something else.</p>
+              <button onClick={() => router.push('/products')} className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium">Clear Filters</button>
+            </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
               {filteredProducts.map((product) => (

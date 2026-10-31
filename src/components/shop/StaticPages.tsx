@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, Phone, MapPin, Send, ChevronDown, ChevronUp } from 'lucide-react';
+import { Mail, Phone, MapPin, Send, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
 
 export function About() {
   return (
@@ -100,7 +100,7 @@ export function Contact() {
         <div className="md:col-span-2">
           {submitted ? (
             <div className="bg-green-50 border border-green-200 rounded-xl p-8 text-center">
-              <div className="text-4xl mb-3">✓</div>
+              <CheckCircle2 size={40} className="text-green-600 mx-auto mb-3" />
               <h2 className="text-xl font-bold text-green-800 mb-2">Message Sent!</h2>
               <p className="text-green-600">Thank you for reaching out. We&apos;ll get back to you within 24 hours.</p>
               <button onClick={() => setSubmitted(false)} className="mt-4 text-sm text-green-700 underline">Send another message</button>

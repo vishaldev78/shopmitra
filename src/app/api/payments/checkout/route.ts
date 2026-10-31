@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import crypto from 'crypto';
 import { db } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
 import { createDodoCheckout, createDodoProduct, getDodoConfig } from '@/lib/dodo';
@@ -43,7 +44,9 @@ export async function POST(req: NextRequest) {
     if (order.paymentMethod !== 'dodo') {
       return NextResponse.json({ success: false, error: 'Order is not a Dodo payment order' }, { status: 400 });
     }
-    if (order.paymentStatus !== 'pending') {
+    // Paid orders can never be paid again. Failed orders MAY retry: stock was
+    // never decremented for them (only markOrderPaid decrements stock).
+    if (order.paymentStatus === 'paid') {
       return NextResponse.json({ success: false, error: 'Order payment already processed' }, { status: 409 });
     }
 
@@ -128,24 +131,32 @@ export async function POST(req: NextRequest) {
       // Real integration attempted but failed — surface the reason, then keep
       // the demo usable via the simulated checkout.
       console.error('dodo checkout failed:', syncError);
-      const simulated = simulatedCheckoutUrl(order.orderNumber);
-      return NextResponse.json({
-        success: true,
-        checkout_url: simulated,
-        provider: 'simulated',
-        notice: `Dodo Payments checkout unavailable (${syncError}). Using simulated checkout.`,
-      });
+      return simulatedCheckout(order);
     }
 
     // 4) No API key — simulated hosted checkout (demo mode)
-    return NextResponse.json({ success: true, checkout_url: simulatedCheckoutUrl(order.orderNumber), provider: 'simulated' });
+    return simulatedCheckout(order);
   } catch (error) {
     console.error('payment checkout error:', error);
     return NextResponse.json({ success: false, error: 'Payment initialization failed' }, { status: 500 });
   }
 }
 
-function simulatedCheckoutUrl(orderNumber: string) {
-  const paymentId = `pay_${Date.now().toString(36)}`;
-  return `/payment-return?order_number=${encodeURIComponent(orderNumber)}&status=succeeded&payment_id=${paymentId}&demo=true`;
+/**
+ * Sandbox checkout used when Dodo is unreachable or not configured. A stable
+ * `sim_…` payment reference is issued and persisted on the order so the
+ * confirm endpoint can verify the caller actually holds it (no forged
+ * "payment succeeded" reports) — the client stays on the page and confirms
+ * in-place instead of navigating.
+ */
+async function simulatedCheckout(order: { id: string; orderNumber: string }) {
+  const paymentId = `sim_${crypto.randomBytes(12).toString('hex')}`;
+  await db.order.update({ where: { id: order.id }, data: { paymentId } });
+  const checkoutUrl = `/payment-return?order_number=${encodeURIComponent(order.orderNumber)}&status=succeeded&payment_id=${paymentId}&demo=true`;
+  return NextResponse.json({
+    success: true,
+    checkout_url: checkoutUrl,
+    payment_id: paymentId,
+    provider: 'simulated',
+  });
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Lock, PackageOpen } from 'lucide-react';
 import { useApp } from '@/store/AppContext';
 import { formatPrice } from '@/lib/utils';
 
@@ -9,7 +10,7 @@ export default function AccountOrders() {
   if (!state.isLoggedIn) {
     return (
       <div className="max-w-lg mx-auto px-4 py-16 text-center">
-        <div className="text-6xl mb-4">🔒</div>
+        <Lock size={56} className="text-navy-300 mx-auto mb-4" strokeWidth={1.4} />
         <h1 className="text-2xl font-bold text-navy-900 mb-2">Please sign in</h1>
         <Link href="/login" className="px-6 py-3 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition inline-block mt-4">Sign In</Link>
       </div>
@@ -20,7 +21,7 @@ export default function AccountOrders() {
     <div className="max-w-7xl mx-auto px-4 py-6">
       <h1 className="text-2xl font-bold text-navy-900 mb-6">My Orders</h1>
       {state.orders.length === 0 ? (
-        <div className="text-center py-12"><div className="text-6xl mb-4">📦</div><h2 className="text-xl font-semibold text-navy-900 mb-2">No orders yet</h2><Link href="/products" className="px-6 py-3 bg-primary-600 text-white rounded-xl font-medium inline-block">Shop Now</Link></div>
+        <div className="text-center py-12"><PackageOpen size={56} className="text-navy-300 mx-auto mb-4" strokeWidth={1.2} /><h2 className="text-xl font-semibold text-navy-900 mb-2">No orders yet</h2><Link href="/products" className="px-6 py-3 bg-primary-600 text-white rounded-xl font-medium inline-block">Shop Now</Link></div>
       ) : (
         <div className="space-y-4">
           {state.orders.map((order) => (

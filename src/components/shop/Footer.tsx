@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { Phone, Mail, ShieldCheck, Lock, BadgeCheck } from 'lucide-react';
 import { useApp } from '@/store/AppContext';
 import { Logo } from './Logo';
 
@@ -86,10 +87,10 @@ export function Footer() {
               <button type="submit" disabled={subscribing} className="px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg text-sm font-medium transition disabled:opacity-50">Join</button>
             </form>
             <div className="mt-4 flex items-center gap-2 text-sm text-navy-300">
-              <span>📞</span> 1800-123-4567
+              <Phone size={14} className="text-navy-400" /> 1800-123-4567
             </div>
             <div className="flex items-center gap-2 text-sm text-navy-300 mt-1">
-              <span>✉️</span> support@shopmitra.in
+              <Mail size={14} className="text-navy-400" /> support@shopmitra.in
             </div>
           </div>
         </div>
@@ -97,9 +98,9 @@ export function Footer() {
         <div className="border-t border-navy-800 mt-10 pt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-navy-400 text-sm">© 2024 ShopMitra. All rights reserved.</p>
           <div className="flex gap-4 text-sm text-navy-400">
-            <span>💳 Secure Payments</span>
-            <span>🔒 SSL Encrypted</span>
-            <span>✅ Verified Seller</span>
+            <span className="flex items-center gap-1.5"><ShieldCheck size={14} /> Secure Payments</span>
+            <span className="flex items-center gap-1.5"><Lock size={14} /> SSL Encrypted</span>
+            <span className="hidden sm:flex items-center gap-1.5"><BadgeCheck size={14} /> Verified Seller</span>
           </div>
         </div>
       </div>

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { Search, ShoppingCart, Heart, User, Menu, X, ChevronDown, Package, LogOut, Settings, MapPin } from 'lucide-react';
+import { Search, ShoppingCart, Heart, User, Menu, X, ChevronDown, Package, LogOut, Settings, MapPin, Truck } from 'lucide-react';
 import { useApp, logoutUser } from '@/store/AppContext';
 import { Logo, LogoMark } from './Logo';
 
@@ -58,7 +58,11 @@ export function Header() {
       {/* Top bar */}
       <div className="bg-gradient-to-r from-navy-900 via-indigo-900 to-navy-900 text-white text-xs py-1.5">
         <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
-          <span>🎉 Free shipping on orders above ₹999 | 🔒 Secure Dodo Payments | ✨ Easy 30-day returns</span>
+          <span className="flex items-center gap-1.5">
+            <Truck size={13} className="shrink-0" /> Free shipping on orders above ₹999
+            <span className="opacity-50 px-1">·</span> Secure Dodo Payments
+            <span className="hidden md:inline"><span className="opacity-50 px-1">·</span> Easy 30-day returns</span>
+          </span>
           <div className="hidden sm:flex gap-4">
             <Link href="/track-order" className="hover:text-primary-300 transition">Track Order</Link>
             <Link href="/contact" className="hover:text-primary-300 transition">Help</Link>

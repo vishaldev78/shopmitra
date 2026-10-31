@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Truck, Shield, RotateCcw, Headphones, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, Truck, Shield, RotateCcw, Headphones, ChevronLeft, ChevronRight, Flame } from 'lucide-react';
 import { useApp } from '@/store/AppContext';
 import { getDiscount } from '@/lib/utils';
 import { ProductCard } from '@/components/shop/ProductCard';
+import { BannerSkeleton, CategoryGridSkeleton, ProductGridSkeleton, SkeletonLine } from '@/components/shop/Skeletons';
 
 export default function Home() {
   const { state, dispatch } = useApp();
@@ -37,8 +38,23 @@ export default function Home() {
 
   return (
     <div className="max-w-7xl mx-auto px-4">
+      {/* Boot state — shimmer skeletons until the catalog arrives */}
+      {state.loading && (
+        <>
+          <BannerSkeleton />
+          <section className="mt-12">
+            <SkeletonLine className="h-7 w-48 mb-6" />
+            <CategoryGridSkeleton />
+          </section>
+          <section className="mt-12">
+            <SkeletonLine className="h-7 w-52 mb-6" />
+            <ProductGridSkeleton count={8} />
+          </section>
+        </>
+      )}
+
       {/* Hero Banner */}
-      {banners.length > 0 && (
+      {!state.loading && banners.length > 0 && (
         <section className="relative mt-6 rounded-2xl overflow-hidden">
           <div className={`bg-gradient-to-r ${banners[currentBanner]?.background_color || 'from-indigo-600 to-purple-600'} p-8 md:p-16 text-white transition-all duration-500`}>
             {banners[currentBanner]?.image_url && (
@@ -76,7 +92,7 @@ export default function Home() {
         {[
           { icon: <Truck size={24} />, title: 'Free Shipping', desc: 'On orders above ₹999' },
           { icon: <RotateCcw size={24} />, title: 'Easy Returns', desc: '30-day return policy' },
-          { icon: <Shield size={24} />, title: 'Secure Payment', desc: 'Dodo Payments' },
+          { icon: <Shield size={24} />, title: 'Secure Payment', desc: 'Via Dodo Payments' },
           { icon: <Headphones size={24} />, title: '24/7 Support', desc: 'Dedicated help center' },
         ].map((feature, i) => (
           <div key={i} className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
@@ -87,6 +103,7 @@ export default function Home() {
       </section>
 
       {/* Categories */}
+      {!state.loading && (
       <section className="mt-12">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-navy-900">Shop by Category</h2>
@@ -101,9 +118,10 @@ export default function Home() {
           ))}
         </div>
       </section>
+      )}
 
       {/* Featured Products */}
-      {featuredProducts.length > 0 && (
+      {!state.loading && featuredProducts.length > 0 && (
         <section className="mt-12">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-navy-900">Featured Products</h2>
@@ -125,10 +143,10 @@ export default function Home() {
       )}
 
       {/* Sale Banner */}
-      {saleProducts.length > 0 && (
+      {!state.loading && saleProducts.length > 0 && (
         <section className="mt-12 bg-gradient-to-r from-red-50 to-orange-50 rounded-2xl p-6 md:p-8">
           <div className="flex justify-between items-center mb-6">
-            <div><h2 className="text-2xl font-bold text-navy-900">🔥 Hot Deals</h2><p className="text-navy-600 text-sm mt-1">Grab these deals before they&apos;re gone!</p></div>
+            <div><h2 className="text-2xl font-bold text-navy-900 flex items-center gap-2"><Flame size={26} className="text-red-500" /> Hot Deals</h2><p className="text-navy-600 text-sm mt-1">Grab these deals before they&apos;re gone!</p></div>
             <Link href="/products?tag=sale" className="text-red-600 text-sm font-medium flex items-center gap-1 hover:text-red-700">View All <ArrowRight size={14} /></Link>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -152,6 +170,9 @@ export default function Home() {
           <h2 className="text-2xl font-bold text-navy-900">New Arrivals</h2>
           <Link href="/products?sort=newest" className="text-primary-600 text-sm font-medium flex items-center gap-1 hover:text-primary-700">View All <ArrowRight size={14} /></Link>
         </div>
+        {state.loading ? (
+          <ProductGridSkeleton count={4} />
+        ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
           {newArrivals.map((product) => (
             <ProductCard
@@ -164,6 +185,7 @@ export default function Home() {
             />
           ))}
         </div>
+        )}
       </section>
 
       {/* Newsletter */}

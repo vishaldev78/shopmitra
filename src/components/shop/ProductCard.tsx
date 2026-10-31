@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Star } from 'lucide-react';
+import { Star, Package } from 'lucide-react';
 import { useApp } from '@/store/AppContext';
 import { formatPrice, getDiscount } from '@/lib/utils';
 import type { Product } from '@/lib/types';
@@ -19,7 +19,7 @@ export function ProductCard({ product, onAddToCart }: { product: Product; onAddT
           {hasImage ? (
             <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
           ) : (
-            <span className="text-6xl">{product.images?.[0] || '📦'}</span>
+            <Package size={48} className="text-navy-300" strokeWidth={1.2} />
           )}
         </div>
         {discount > 0 && <span className="absolute top-2 left-2 badge-discount text-white text-xs font-bold px-2 py-1 rounded-lg">{discount}% OFF</span>}

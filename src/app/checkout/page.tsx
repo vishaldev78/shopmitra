@@ -1,12 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Check, Banknote, ArrowLeft, Lock, ShieldCheck } from 'lucide-react';
+import { Check, Banknote, ArrowLeft, Lock, ShieldCheck, Loader2 } from 'lucide-react';
 import { useApp } from '@/store/AppContext';
 import { getCartTotal, formatPrice } from '@/lib/utils';
 import type { Order, ShippingAddress } from '@/lib/types';
+import { PaymentModal, type PaymentProvider } from '@/components/shop/PaymentModal';
+import { SkeletonLine } from '@/components/shop/Skeletons';
+
+interface PaymentSession {
+  orderNumber: string;
+  amount: number;
+  provider: PaymentProvider;
+  checkoutUrl: string;
+  simulatedPaymentId: string | null;
+}
 
 export default function Checkout() {
   const { state, dispatch } = useApp();
@@ -16,42 +26,137 @@ export default function Checkout() {
   const [processing, setProcessing] = useState(false);
   const [address, setAddress] = useState<ShippingAddress>({ fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', postalCode: '', country: 'India' });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [session, setSession] = useState<PaymentSession | null>(null);
+  // Bumped on every payment retry so the modal remounts with fresh state.
+  const [attempt, setAttempt] = useState(0);
+  const activeOrderRef = useRef<string | null>(null);
   const totals = getCartTotal(state.cart, state.couponDiscount);
+  const sessionLoaded = state.dbReady;
 
-  // 🔒 LOGIN REQUIRED - Redirect to login if not authenticated
-  if (!state.isLoggedIn) {
+  // ── Auth wall ────────────────────────────────────────────────────────────
+  // Signed-out visitors go straight to the sign-in page; after signing in
+  // they land back here with their cart intact.
+  useEffect(() => {
+    if (sessionLoaded && !state.isLoggedIn) {
+      router.replace('/login?redirect=/checkout');
+    }
+  }, [sessionLoaded, state.isLoggedIn, router]);
+
+  const handleFinalized = useCallback((orderNumber: string, outcome: 'succeeded' | 'failed') => {
+    if (outcome !== 'succeeded') return;
+    dispatch({ type: 'CLEAR_CART' });
+    dispatch({ type: 'REMOVE_COUPON' });
+    // Refresh the orders list in the background while the success screen shows.
+    fetch('/api/orders')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) dispatch({ type: 'SET_ORDERS', orders: d.orders || [] }); })
+      .catch(() => {});
+    setTimeout(() => router.push(`/order-success/${orderNumber}`), 1400);
+  }, [dispatch, router]);
+
+  /** Create (or reuse) a payment session for an order and open the overlay. */
+  const startPayment = useCallback(async (orderNumber: string) => {
+    const payRes = await fetch('/api/payments/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        order_number: orderNumber,
+        customer_email: state.user?.email || '',
+      }),
+    });
+    const payData = await payRes.json();
+    if (!payRes.ok || !payData.success || !payData.checkout_url) {
+      throw new Error(payData.error || 'Payment initialization failed');
+    }
+    activeOrderRef.current = orderNumber;
+    setSession({
+      orderNumber,
+      amount: totals.total,
+      provider: payData.provider === 'dodo' ? 'dodo' : 'simulated',
+      checkoutUrl: payData.checkout_url,
+      simulatedPaymentId: payData.payment_id ?? null,
+    });
+    if (payData.notice) {
+      // Provider fallback details are for the console, not the customer UI —
+      // the sandbox overlay itself explains what is happening.
+      console.warn('[payments]', payData.notice);
+    }
+    setAttempt((n) => n + 1);
+  }, [state.user?.email, totals.total]);
+
+  const handlePlaceOrder = async () => {
+    setProcessing(true);
+    try {
+      // 1) Create the order server-side (totals recomputed on server)
+      const createRes = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: state.cart.map((item) => ({ productId: item.product.id, quantity: item.quantity })),
+          shipping_address: address,
+          payment_method: paymentMethod,
+          coupon_code: state.couponCode,
+        }),
+      });
+      const createData = await createRes.json();
+      if (!createRes.ok) {
+        throw new Error(createData.error || 'Failed to create order');
+      }
+      const order: Order = createData.order;
+
+      // 2) Dodo Payments — open the secure overlay (no page redirect)
+      if (paymentMethod === 'dodo') {
+        await startPayment(order.order_number);
+        setProcessing(false);
+        return;
+      }
+
+      // 3) COD — order already confirmed server-side
+      dispatch({ type: 'ADD_ORDER', order });
+      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'success', message: 'Order placed successfully!' } });
+      setProcessing(false);
+      router.push(`/order-success/${order.order_number}`);
+    } catch (error) {
+      console.error('Order creation error:', error);
+      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'error', message: (error as Error).message || 'Failed to place order. Please try again.' } });
+      setProcessing(false);
+    }
+  };
+
+  // ── Boot state: shimmer skeleton while the session resolves ─────────────
+  if (!sessionLoaded) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-16 text-center">
-        <div className="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
-          <Lock size={32} className="text-primary-600" />
-        </div>
-        <h1 className="text-2xl font-bold text-navy-900 mb-2">Login Required</h1>
-        <p className="text-navy-500 mb-6">Please sign in to proceed with checkout. Your cart items are saved.</p>
-        <div className="bg-gray-50 rounded-xl p-4 mb-6 text-left">
-          <p className="text-sm font-medium text-navy-700 mb-2">Your Cart ({state.cart.length} items):</p>
-          {state.cart.slice(0, 3).map((item) => (
-            <div key={item.product.id} className="flex justify-between text-sm py-1">
-              <span className="text-navy-600 truncate">{item.product.name} × {item.quantity}</span>
-              <span className="font-medium">{formatPrice(item.product.price * item.quantity)}</span>
+      <div className="max-w-7xl mx-auto px-4 py-6" role="status" aria-label="Loading checkout">
+        <SkeletonLine className="h-4 w-28 mb-6" />
+        <SkeletonLine className="h-8 w-44 mb-6" />
+        <div className="grid lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-4">
+            <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
+              <SkeletonLine className="h-5 w-40" />
+              <div className="grid sm:grid-cols-2 gap-4">
+                {Array.from({ length: 6 }).map((_, i) => <SkeletonLine key={i} className="h-11 w-full" />)}
+              </div>
+              <SkeletonLine className="h-12 w-48 rounded-xl" />
             </div>
-          ))}
-          {state.cart.length > 3 && <p className="text-xs text-navy-400">+{state.cart.length - 3} more items</p>}
-          <hr className="my-2" />
-          <div className="flex justify-between font-bold">
-            <span>Total</span>
-            <span>{formatPrice(totals.total)}</span>
+          </div>
+          <div className="space-y-3">
+            <div className="bg-gray-50 rounded-xl p-6 space-y-3">
+              <SkeletonLine className="h-5 w-36" />
+              {Array.from({ length: 4 }).map((_, i) => <SkeletonLine key={i} className="h-4 w-full" />)}
+              <SkeletonLine className="h-6 w-full" />
+            </div>
           </div>
         </div>
-        <div className="flex gap-3 justify-center">
-          <Link href="/cart" className="px-6 py-3 border border-gray-200 rounded-xl font-medium text-navy-700 hover:bg-gray-50 transition">Back to Cart</Link>
-          <Link
-            href="/login?redirect=/checkout"
-            className="px-6 py-3 bg-primary-600 text-white rounded-xl font-semibold hover:bg-primary-700 transition flex items-center gap-2"
-          >
-            <Lock size={16} /> Sign In to Continue
-          </Link>
-        </div>
-        <p className="text-xs text-navy-400 mt-4">Don&apos;t have an account? <Link href="/register" className="text-primary-600 font-medium">Create one</Link></p>
+      </div>
+    );
+  }
+
+  // Session loaded and no user — the effect above is navigating to sign-in.
+  if (!state.isLoggedIn) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-navy-500">
+        <Loader2 size={28} className="animate-spin text-primary-600" />
+        <p className="text-sm">Taking you to sign in…</p>
       </div>
     );
   }
@@ -75,68 +180,6 @@ export default function Checkout() {
     if (!address.postalCode.trim() || address.postalCode.length < 6) e.postalCode = 'Valid pincode required';
     setErrors(e);
     return Object.keys(e).length === 0;
-  };
-
-  const handlePlaceOrder = async () => {
-    setProcessing(true);
-    try {
-      // 1) Create the order server-side (totals recomputed on server)
-      const createRes = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: state.cart.map((item) => ({ productId: item.product.id, quantity: item.quantity })),
-          shipping_address: address,
-          payment_method: paymentMethod,
-          coupon_code: state.couponCode,
-        }),
-      });
-      const createData = await createRes.json();
-      if (!createRes.ok) {
-        throw new Error(createData.error || 'Failed to create order');
-      }
-      const order: Order = createData.order;
-
-      // 2) Dodo Payments — get checkout URL (server-side integration)
-      if (paymentMethod === 'dodo') {
-        const payRes = await fetch('/api/payments/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            order_number: order.order_number,
-            amount: order.total,
-            currency: 'INR',
-            customer_email: state.user?.email || '',
-            customer_name: address.fullName,
-            products: state.cart.map((item) => ({ name: item.product.name, quantity: item.quantity, price: item.product.price })),
-          }),
-        });
-        const payData = await payRes.json();
-
-        if (payRes.ok && payData.success && payData.checkout_url) {
-          dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'info', message: 'Redirecting to secure payment...' } });
-          if (payData.provider === 'simulated') {
-            // Simulated checkout returns an internal route
-            router.push(payData.checkout_url);
-          } else {
-            window.location.href = payData.checkout_url;
-          }
-          return;
-        }
-        // Payment init failed — order stays pending; show error
-        throw new Error(payData.error || 'Payment initialization failed');
-      }
-
-      // 3) COD — order already confirmed server-side
-      dispatch({ type: 'ADD_ORDER', order });
-      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'success', message: 'Order placed successfully!' } });
-      setProcessing(false);
-      router.push(`/order-success/${order.order_number}`);
-    } catch (error) {
-      console.error('Order creation error:', error);
-      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'error', message: (error as Error).message || 'Failed to place order. Please try again.' } });
-      setProcessing(false);
-    }
   };
 
   return (
@@ -200,8 +243,8 @@ export default function Checkout() {
               {paymentMethod === 'dodo' && (
                 <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-xs text-blue-700 flex items-center gap-2">
-                    <ShieldCheck size={14} />
-                    You&apos;ll be redirected to Dodo&apos;s secure checkout page to complete payment. Your order is safe with us.
+                    <ShieldCheck size={14} className="shrink-0" />
+                    A secure payment window will open right here — you stay on this page the whole time.
                   </p>
                 </div>
               )}
@@ -231,7 +274,7 @@ export default function Checkout() {
                 <h3 className="font-medium text-navy-900 mb-3">Items ({state.cart.length})</h3>
                 {state.cart.map((item) => (
                   <div key={item.product.id} className="flex items-center gap-3 py-2">
-                    {item.product.images?.[0]?.startsWith('http') ? <img src={item.product.images[0]} alt="" className="w-12 h-12 rounded object-cover" /> : <span className="text-2xl">📦</span>}
+                    {item.product.images?.[0]?.startsWith('http') ? <img src={item.product.images[0]} alt="" className="w-12 h-12 rounded object-cover" /> : <span className="w-12 h-12 rounded bg-gray-100 flex items-center justify-center text-2xl">{item.product.images?.[0] || ''}</span>}
                     <div className="flex-1"><p className="text-sm font-medium text-navy-900 truncate">{item.product.name}</p><p className="text-xs text-navy-500">Qty: {item.quantity}</p></div>
                     <p className="text-sm font-medium">{formatPrice(item.product.price * item.quantity)}</p>
                   </div>
@@ -249,14 +292,14 @@ export default function Checkout() {
                   {processing ? (
                     <span className="flex items-center justify-center gap-2"><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Processing...</span>
                   ) : paymentMethod === 'dodo' ? (
-                    <span className="flex items-center justify-center gap-2">Pay {formatPrice(totals.total)} with Dodo <ShieldCheck size={16} /></span>
+                    <span className="flex items-center justify-center gap-2">Pay {formatPrice(totals.total)} Securely <Lock size={15} /></span>
                   ) : (
                     `Place Order • ${formatPrice(totals.total)}`
                   )}
                 </button>
               </div>
               {paymentMethod === 'dodo' && (
-                <p className="text-xs text-navy-400 mt-3 text-center">🔒 You&apos;ll be redirected to Dodo&apos;s secure payment page</p>
+                <p className="text-xs text-navy-400 mt-3 text-center">You stay on this page — payment opens in a secure window</p>
               )}
             </div>
           )}
@@ -274,11 +317,38 @@ export default function Checkout() {
             </div>
             <div className="flex items-center gap-2 text-xs text-navy-500 mt-3">
               <ShieldCheck size={14} className="text-green-600" />
-              <span>Secured by Dodo Payments • 256-bit SSL</span>
+              <span>Secured by Dodo Payments · 256-bit SSL</span>
             </div>
           </div>
         </div>
       </div>
+
+      {/* In-page secure payment overlay — no navigation away */}
+      {session && (
+        <PaymentModal
+          key={attempt}
+          open
+          orderNumber={session.orderNumber}
+          amount={session.amount}
+          provider={session.provider}
+          checkoutUrl={session.checkoutUrl}
+          simulatedPaymentId={session.simulatedPaymentId}
+          onFinalized={handleFinalized}
+          onRetry={async () => {
+            const orderNumber = activeOrderRef.current;
+            if (!orderNumber) return;
+            try {
+              await startPayment(orderNumber);
+            } catch (error) {
+              dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'error', message: (error as Error).message || 'Could not restart payment' } });
+            }
+          }}
+          onClose={() => {
+            setSession(null);
+            activeOrderRef.current = null;
+          }}
+        />
+      )}
     </div>
   );
 }

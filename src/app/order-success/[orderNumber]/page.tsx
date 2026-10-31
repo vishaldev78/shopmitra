@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Check } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 import type { Order } from '@/lib/types';
 
@@ -20,7 +21,7 @@ export default function OrderSuccess({ params }: { params: Promise<{ orderNumber
 
   return (
     <div className="max-w-lg mx-auto px-4 py-16 text-center">
-      <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6"><span className="text-4xl text-green-600">✓</span></div>
+      <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6"><Check size={40} className="text-green-600" strokeWidth={2.5} /></div>
       <h1 className="text-2xl font-bold text-navy-900 mb-2">Order Placed Successfully!</h1>
       <p className="text-navy-500 mb-6">Thank you for your purchase. Your order has been confirmed.</p>
       {loading ? (

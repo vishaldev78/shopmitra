@@ -3,7 +3,7 @@
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, LockKeyhole } from 'lucide-react';
 import { useApp, loginUser } from '@/store/AppContext';
 
 function LoginContent() {
@@ -42,8 +42,8 @@ function LoginContent() {
           <h1 className="text-2xl font-bold text-navy-900">Welcome back</h1>
           <p className="text-navy-500 mt-1">Sign in to your ShopMitra account</p>
           {fromCheckout && (
-            <div className="mt-3 p-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
-              🔒 Please sign in to complete your order
+            <div className="mt-3 p-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 flex items-center justify-center gap-1.5">
+              <LockKeyhole size={13} /> Please sign in to complete your order
             </div>
           )}
         </div>

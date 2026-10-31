@@ -4,6 +4,7 @@ import { useApp } from '@/store/AppContext';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { Notification } from './Notification';
+import { BannerSkeleton, CategoryGridSkeleton, ProductGridSkeleton, SkeletonLine } from './Skeletons';
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { state } = useApp();
@@ -13,9 +14,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <Header />
       <main className="flex-1 page-transition">
         {state.loading ? (
-          <div className="max-w-7xl mx-auto px-4 py-20 text-center">
-            <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-navy-500">Loading ShopMitra...</p>
+          // Boot state — shimmer skeletons mirror the home layout so the
+          // first paint already feels like the finished page.
+          <div className="max-w-7xl mx-auto px-4" role="status" aria-label="Loading ShopMitra">
+            <BannerSkeleton />
+            <section className="mt-12">
+              <SkeletonLine className="h-7 w-48 mb-6" />
+              <CategoryGridSkeleton />
+            </section>
+            <section className="mt-12">
+              <SkeletonLine className="h-7 w-52 mb-6" />
+              <ProductGridSkeleton count={8} />
+            </section>
+            <div className="h-8" />
           </div>
         ) : (
           children

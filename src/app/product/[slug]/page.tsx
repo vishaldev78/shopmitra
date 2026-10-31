@@ -4,9 +4,10 @@ import { use } from 'react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Star, ShoppingCart, Truck, Shield, RotateCcw, Minus, Plus, ChevronRight } from 'lucide-react';
+import { Star, ShoppingCart, Truck, Shield, RotateCcw, Minus, Plus, ChevronRight, Package, PackageSearch } from 'lucide-react';
 import { useApp } from '@/store/AppContext';
 import { formatPrice, getDiscount } from '@/lib/utils';
+import { ProductDetailSkeleton } from '@/components/shop/Skeletons';
 
 export default function ProductDetail({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -18,11 +19,17 @@ export default function ProductDetail({ params }: { params: Promise<{ slug: stri
 
   const product = state.products.find((p) => p.slug === slug);
 
+  // Catalog still streaming in — shimmer placeholder instead of a false 404.
+  if (state.loading) {
+    return <ProductDetailSkeleton />;
+  }
+
   if (!product) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-16 text-center">
-        <div className="text-6xl mb-4">😕</div>
+        <PackageSearch size={56} className="text-navy-300 mx-auto mb-4" />
         <h1 className="text-2xl font-bold text-navy-900 mb-2">Product Not Found</h1>
+        <p className="text-sm text-navy-500 mb-6">It may have been removed, or the link is incorrect.</p>
         <Link href="/products" className="px-6 py-3 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition inline-block">Browse Products</Link>
       </div>
     );
@@ -57,7 +64,7 @@ export default function ProductDetail({ params }: { params: Promise<{ slug: stri
           {hasImage ? (
             <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
           ) : (
-            <span className="text-9xl">{product.images?.[0] || '📦'}</span>
+            <Package size={96} className="text-navy-300" strokeWidth={1.2} />
           )}
         </div>
 
@@ -159,7 +166,7 @@ export default function ProductDetail({ params }: { params: Promise<{ slug: stri
             {relatedProducts.map((p) => (
               <Link key={p.id} href={`/product/${p.slug}`} className="product-card bg-white border border-gray-100 rounded-xl overflow-hidden">
                 <div className="aspect-square bg-gray-50 flex items-center justify-center overflow-hidden">
-                  {p.images?.[0]?.startsWith('http') ? <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover" /> : <span className="text-5xl">{p.images?.[0]}</span>}
+                  {p.images?.[0]?.startsWith('http') ? <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover" /> : <Package size={36} className="text-navy-300" strokeWidth={1.2} />}
                 </div>
                 <div className="p-3"><p className="text-xs text-navy-500">{p.brand}</p><h3 className="font-medium text-sm text-navy-900 line-clamp-1 mt-1">{p.name}</h3><p className="font-bold text-navy-900 mt-2">{formatPrice(p.price)}</p></div>
               </Link>

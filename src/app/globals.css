@@ -132,9 +132,9 @@ body {
   to { transform: translateX(0); }
 }
 
-@keyframes pulse-skeleton {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.8; }
+/* Shimmer skeleton — wave sweeps left→right over a soft grey base */
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
 }
 
 .animate-fade-in {
@@ -142,9 +142,24 @@ body {
 }
 
 .skeleton {
-  animation: pulse-skeleton 1.5s ease-in-out infinite;
-  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
-  background-size: 200% 100%;
+  position: relative;
+  overflow: hidden;
+  background-color: #e9eef5;
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+  animation: shimmer 1.6s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+  }
 }
 
 /* Product card hover */

@@ -70,3 +70,29 @@ Work Log:
 Stage Summary:
 - REAL Dodo Payments fully operational in test mode: store order → product auto-sync → hosted checkout (UPI/Cards/etc.) → 3DS → server-verified return → webhook backup → idempotent finalization
 - For production: swap test key with live key (DODO_PAYMENTS_ENVIRONMENT=live_mode), replace DODO_PAYMENTS_WEBHOOK_KEY with dashboard signing secret, register webhook endpoint <domain>/api/payments/webhook
+
+---
+Task ID: 4
+Agent: Z.ai (main agent)
+Task: In-page checkout (no redirect), direct sign-in wall, shimmer loading, de-AI polish, new Dodo key activated
+
+Work Log:
+- Activated new write-scoped Dodo key in .env; verified POST /checkouts returns real sessions (cks_...) — 14/14 API tests PASS including real hosted checkout creation
+- Checkout flow rebuilt to NEVER navigate away from the page:
+  - New src/components/shop/PaymentModal.tsx: secure in-page overlay; Dodo hosted checkout opens in a popup window (opened synchronously inside the click handler so browsers don't block it), overlay polls POST /api/payments/confirm every 2.5s and flips to success/failure automatically; handles popup-blocked (manual "Open Secure Checkout" button), window-closed-early ("Check status" + "Reopen window"), retry (re-creates checkout session on the same order), sandbox mode (explicit Complete/Fail buttons bound to the unguessable sim_ reference), ESC/cancel keeps order pending
+  - Checkout page: signed-out users are auto-replaced to /login?redirect=/checkout (direct sign-in wall, no intermediate panel); shimmer skeleton while the session boots; success clears cart, refreshes orders, redirects to order-success
+- Payment API hardening:
+  - checkout route: failed orders may retry payment (paid still blocked); simulated checkout now issues + persists a stable sim_ payment reference on the order and returns it
+  - confirm route: status field now optional — a bare status poll NEVER mutates an order; real Dodo references (cks_/pay_) are verified server-side only, lookup failures surface as pending and can never fall back to client-reported success; sim_ finalization requires owner session + exact reference + explicit status; anonymous callers without proof get 403
+- Shimmer loading system:
+  - globals.css: .skeleton rewritten as true shimmer (left→right sweeping wave, prefers-reduced-motion safe)
+  - New src/components/shop/Skeletons.tsx (ProductCardSkeleton mirrors ProductCard geometry, ProductGridSkeleton, CategoryGridSkeleton, BannerSkeleton, ProductDetailSkeleton, SkeletonLine)
+  - Layout boot screen replaced spinner → full-page shimmer (hero + categories + product grid); home, products, product detail and checkout pages all have their own skeletons; verified via DOM count: 79 .skeleton elements during boot → 0 after load
+- Branding & polish (de-AI):
+  - Replaced public/logo.svg (Z.ai "Z" mark) with ShopMitra gradient storefront glyph
+  - Replaced emoji placeholders with Lucide icons across Header announcement bar, Footer contact/trust rows, cart empty/checkout trust lines, account orders, wishlist, admin gate, login hint, order success check, contact form success, product card/detail fallbacks (Package), empty search (SearchX), Hot Deals (Flame)
+- Browser E2E (agent-browser): auth wall redirect ✓ → login ✓ → cart → address → Pay ₹35,388 Securely → popup opened REAL Dodo hosted checkout (product auto-synced pdt_...) while main page stayed on /checkout with polling modal ✓ → test card 4242… paid in popup → main page auto-flipped to success and landed on /order-success/SM-MVW2ACX9-NJCB; DB: paymentStatus=paid, paymentId=pay_... (real Dodo id resolved from session), stock decremented; leftover pending test orders deleted, stock restored; lint clean; no runtime errors in dev.log
+
+Stage Summary:
+- Payment now feels native: user never leaves the store, hosted checkout lives in a controlled popup, status verification stays server-authoritative (poll + webhook + return all reconcile on the same finalize helpers)
+- Sign-in wall is direct (checkout → login → back to checkout), loading states are proper shimmer skeletons, and all Z.ai traces are gone from the UI
