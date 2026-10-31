@@ -149,3 +149,5 @@ Stage Summary:
 - Route change auto-closes search panel + menus; opening the hamburger closes search and vice-versa
 - tsconfig: excluded upload/, .sandbox/, skills/, examples/ from type-check; widened AddressFormData.label to string (matches SavedAddress, fixes 2 pre-existing TS errors); .gitignore: !.env.example
 - Verification: tsc clean, eslint clean, zero browser console errors; mobile 390px screenshots — navbar (hamburger+logo+search icon only) ✓, search panel open ✓, hamburger with account/wishlist/cart+counts ✓; search "watch" → 1 result (Smart Fitness Watch) ✓; desktop 1366px unchanged ✓
+- Follow-up (same day): cart icon ab mobile navbar me bhi visible — search icon ke saath right end pe (profile/wishlist ab bhi sirf hamburger me); live count badge mobile pe bhi; desktop unchanged
+- Verification: mobile 390px screenshot — search + cart icons right ✓, "Add to Cart" → badge "1" + toast ✓; desktop 1366px unchanged ✓

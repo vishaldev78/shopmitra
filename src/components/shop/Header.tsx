@@ -112,8 +112,8 @@ export function Header() {
             </div>
           </form>
 
-          {/* Right actions — search icon (phones) · profile · wishlist · cart pinned far right.
-              Profile/wishlist/cart live only in the hamburger menu on phones. */}
+          {/* Right actions — search · cart visible on every device; profile · wishlist desktop only
+              (both live in the hamburger menu on phones). Group pinned far right. */}
           <div className="ml-auto flex items-center gap-0.5 sm:gap-1.5 shrink-0">
             {/* Search toggle — phones only: opens the search box below the navbar */}
             <button
@@ -187,8 +187,8 @@ export function Header() {
               )}
             </Link>
 
-            {/* Cart — desktop only (in hamburger menu on phones) */}
-            <Link href="/cart" aria-label="Cart" className="relative hidden lg:block p-2.5 hover:bg-gray-50 rounded-lg transition">
+            {/* Cart — visible on all devices (badge = live item count) */}
+            <Link href="/cart" aria-label="Cart" className="relative block p-2.5 hover:bg-gray-50 rounded-lg transition">
               <ShoppingCart size={21} className="text-navy-700" />
               {cartCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-primary-600 text-white text-[10px] rounded-full flex items-center justify-center font-medium">
