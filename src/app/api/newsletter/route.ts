@@ -21,9 +21,24 @@ export async function POST(req: NextRequest) {
       create: { email: parsed.data.email.toLowerCase() },
     });
 
-    return NextResponse.json({ success: true });
+    const response = NextResponse.json({ success: true });
+    response.cookies.set('shopmitra_newsletter_subscribed', '1', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365,
+    });
+    return response;
   } catch (error) {
     console.error('newsletter error:', error);
     return NextResponse.json({ success: false, error: 'Subscription failed' }, { status: 500 });
   }
+}
+
+// GET /api/newsletter — check whether this browser has already subscribed.
+export async function GET(req: NextRequest) {
+  return NextResponse.json({
+    subscribed: req.cookies.get('shopmitra_newsletter_subscribed')?.value === '1',
+  });
 }

@@ -3,9 +3,9 @@
   "version": "0.2.1",
   "private": true,
   "scripts": {
-    "dev": "node scripts/with-env.mjs --log dev.log next dev -p 3000",
-    "build": "node scripts/with-env.mjs next build",
-    "start": "NODE_ENV=production node .next/standalone/server.js",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "NODE_ENV=production next start",
     "lint": "eslint .",
     "db:up": "node scripts/db-up.mjs",
     "db:push": "node scripts/db-up.mjs && node scripts/with-env.mjs prisma db push --accept-data-loss",

@@ -27,10 +27,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ valid: false, discount: 0, error: `Minimum order: ₹${coupon.minOrderAmount}` });
     }
 
-    const discount =
+    const discount = Math.min(order_amount,
       coupon.discountType === 'percentage'
         ? Math.round((order_amount * coupon.discountValue) / 100)
-        : Math.round(coupon.discountValue);
+        : Math.round(coupon.discountValue));
 
     return NextResponse.json({ valid: true, discount, code: coupon.code });
   } catch (error) {

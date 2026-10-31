@@ -7,34 +7,7 @@ import { useApp } from '@/store/AppContext';
 import { Logo } from './Logo';
 
 export function Footer() {
-  const { dispatch } = useApp();
-  const [email, setEmail] = useState('');
-  const [subscribing, setSubscribing] = useState(false);
-
-  const handleSubscribe = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setSubscribing(true);
-    try {
-      const res = await fetch('/api/newsletter', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json();
-      dispatch({
-        type: 'SET_NOTIFICATION',
-        notification: res.ok && data.success
-          ? { type: 'success', message: 'Subscribed! Welcome to the family.' }
-          : { type: 'error', message: data.error || 'Subscription failed' },
-      });
-      if (res.ok) setEmail('');
-    } catch {
-      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'error', message: 'Subscription failed' } });
-    } finally {
-      setSubscribing(false);
-    }
-  };
+  const { state, dispatch } = useApp();
 
   return (
     <footer className="bg-navy-900 text-white mt-12">
@@ -68,7 +41,9 @@ export function Footer() {
               <li><Link href="/contact" className="hover:text-white transition">Contact Us</Link></li>
               <li><Link href="/faq" className="hover:text-white transition">FAQ</Link></li>
               <li><Link href="/track-order" className="hover:text-white transition">Track Order</Link></li>
-              <li><Link href="/admin" className="hover:text-white transition">Admin Dashboard</Link></li>
+              {(state.user?.role === 'admin' || state.user?.role === 'super_admin') && (
+                <li><Link href="/admin" className="hover:text-white transition">Admin Dashboard</Link></li>
+              )}
             </ul>
           </div>
 
@@ -83,21 +58,16 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Newsletter */}
-          <div>
-            <h3 className="font-semibold mb-4">Stay Updated</h3>
-            <p className="text-navy-300 text-sm mb-3">Subscribe for exclusive deals and new arrivals.</p>
-            <form onSubmit={handleSubscribe} className="flex gap-2">
-              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Your email" className="flex-1 px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-sm text-white placeholder-navy-400 focus:outline-none focus:ring-2 focus:ring-primary-500" />
-              <button type="submit" disabled={subscribing} className="px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg text-sm font-medium transition disabled:opacity-50">Join</button>
-            </form>
-            <div className="mt-4 flex items-center gap-2 text-sm text-navy-300">
+          <div className="lg:justify-self-end">
+            <h3 className="font-semibold mb-4">Contact Us</h3>
+            <div className="flex items-center gap-2 text-sm text-navy-300">
               <Phone size={14} className="text-navy-400" /> 1800-123-4567
             </div>
-            <div className="flex items-center gap-2 text-sm text-navy-300 mt-1">
+            <div className="flex items-center gap-2 text-sm text-navy-300 mt-2">
               <Mail size={14} className="text-navy-400" /> support@shopmitra.in
             </div>
           </div>
+
         </div>
 
         <div className="border-t border-navy-800 mt-10 pt-6 flex flex-col sm:flex-row justify-between items-center gap-4">

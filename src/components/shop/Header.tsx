@@ -13,6 +13,7 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [shippingBannerVisible, setShippingBannerVisible] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -63,20 +64,31 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-gray-100 shadow-sm">
-      {/* Top bar */}
-      <div className="bg-gradient-to-r from-navy-900 via-indigo-900 to-navy-900 text-white text-xs py-1.5">
-        <div className="shell flex justify-between items-center">
-          <span className="flex items-center gap-1.5 min-w-0 truncate">
-            <Truck size={13} className="shrink-0" /> <span className="truncate">Free shipping above ₹999</span>
-            <span className="hidden sm:inline"><span className="opacity-50 px-1">·</span> Secure Online Payments</span>
-            <span className="hidden md:inline"><span className="opacity-50 px-1">·</span> Easy 30-day returns</span>
-          </span>
-          <div className="hidden sm:flex gap-4">
-            <Link href="/track-order" className="hover:text-primary-300 transition">Track Order</Link>
-            <Link href="/contact" className="hover:text-primary-300 transition">Help</Link>
+      {shippingBannerVisible && (
+        <div className="bg-gradient-to-r from-navy-900 via-indigo-900 to-navy-900 text-white text-xs py-1.5">
+          <div className="shell flex justify-between items-center gap-3">
+            <span className="flex items-center gap-1.5 min-w-0 truncate">
+              <Truck size={13} className="shrink-0" /> <span className="truncate">Free shipping above ₹999</span>
+              <span className="hidden sm:inline"><span className="opacity-50 px-1">·</span> Secure Online Payments</span>
+              <span className="hidden md:inline"><span className="opacity-50 px-1">·</span> Easy 30-day returns</span>
+            </span>
+            <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+              <div className="hidden sm:flex gap-4">
+                <Link href="/track-order" className="hover:text-primary-300 transition">Track Order</Link>
+                <Link href="/contact" className="hover:text-primary-300 transition">Help</Link>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShippingBannerVisible(false)}
+                aria-label="Dismiss shipping banner"
+                className="p-1 -mr-1 rounded hover:bg-white/10 transition"
+              >
+                <X size={14} />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Main header */}
       <div className="shell py-3">
@@ -285,7 +297,9 @@ export function Header() {
             <hr className="my-2" />
 
             <Link href="/track-order" className="block px-3 py-2 text-sm text-navy-600 hover:bg-gray-50 rounded-lg">Track Order</Link>
-            <Link href="/admin" className="block px-3 py-2 text-sm text-navy-600 hover:bg-gray-50 rounded-lg">Admin Dashboard</Link>
+            {(state.user?.role === 'admin' || state.user?.role === 'super_admin') && (
+              <Link href="/admin" className="block px-3 py-2 text-sm text-navy-600 hover:bg-gray-50 rounded-lg">Admin Dashboard</Link>
+            )}
           </div>
         </div>
       )}

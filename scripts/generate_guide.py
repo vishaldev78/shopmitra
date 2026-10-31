@@ -342,7 +342,7 @@ doc = TocDocTemplate(
     OUT_BODY, pagesize=A4,
     leftMargin=MARGIN, rightMargin=MARGIN,
     topMargin=MARGIN, bottomMargin=MARGIN,
-    title=DOC_TITLE, author='Z.ai', creator='Z.ai',
+    title=DOC_TITLE,
     subject='Beginner Hinglish guide to the ShopMitra codebase',
 )
 doc.multiBuild(story, onFirstPage=on_page, onLaterPages=on_page)
@@ -367,7 +367,7 @@ writer = PdfWriter()
 writer.add_page(normalize(PdfReader(COVER).pages[0]))
 for page in PdfReader(OUT_BODY).pages:
     writer.add_page(normalize(page))
-writer.add_metadata({'/Title': DOC_TITLE, '/Author': 'Z.ai', '/Creator': 'Z.ai',
+writer.add_metadata({'/Title': DOC_TITLE,
                      '/Subject': 'Beginner Hinglish guide to the ShopMitra codebase'})
 with open(FINAL, 'wb') as f:
     writer.write(f)

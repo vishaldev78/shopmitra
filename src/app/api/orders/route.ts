@@ -99,7 +99,12 @@ export async function POST(req: NextRequest) {
     if (coupon_code) {
       const coupon = await db.coupon.findUnique({ where: { code: coupon_code.toUpperCase() } });
       if (coupon && coupon.isActive && subtotal >= coupon.minOrderAmount) {
-        discount = coupon.discountType === 'percentage' ? Math.round((subtotal * coupon.discountValue) / 100) : Math.round(coupon.discountValue);
+        discount = Math.min(
+          subtotal,
+          coupon.discountType === 'percentage'
+            ? Math.round((subtotal * coupon.discountValue) / 100)
+            : Math.round(coupon.discountValue)
+        );
         appliedCoupon = coupon.code;
       }
     }

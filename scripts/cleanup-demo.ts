@@ -16,7 +16,7 @@ async function main() {
   });
 
   if (users.length === 0) {
-    console.log('✅ No demo accounts found — nothing to clean');
+    console.log(' No demo accounts found — nothing to clean');
     return;
   }
 

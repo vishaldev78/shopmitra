@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { BarChart3, Package, Users, ShoppingBag, TrendingUp, AlertTriangle, Edit, Trash2, Plus, Search, Image as ImageIcon, ShieldAlert, Loader2, ShieldCheck, Ban, KeyRound, Store, UserCircle } from 'lucide-react';
+import { BarChart3, Package, Users, ShoppingBag, TrendingUp, AlertTriangle, Edit, Trash2, Plus, Search, Image as ImageIcon, ShieldAlert, Loader2, ShieldCheck, Ban, KeyRound, Store, UserCircle, Layers, Tag, MapPin, X } from 'lucide-react';
 import { useApp, useAdminMutations } from '@/store/AppContext';
 import { formatPrice, isAdminRole } from '@/lib/utils';
-import type { AdminStats, AdminUserRow, Banner, Product, Category } from '@/lib/types';
+import type { AdminStats, AdminUserRow, Banner, Product, Category, Order } from '@/lib/types';
 
-type AdminTab = 'dashboard' | 'products' | 'orders' | 'customers' | 'banners' | 'settings';
+type AdminTab = 'dashboard' | 'products' | 'orders' | 'categories' | 'coupons' | 'sections' | 'customers' | 'settings';
 
 export default function AdminDashboard() {
   const { state } = useApp();
@@ -16,9 +16,8 @@ export default function AdminDashboard() {
     return (
       <div className="max-w-lg mx-auto px-4 py-16 text-center">
         <ShieldAlert size={56} className="text-navy-300 mx-auto mb-4" strokeWidth={1.4} />
-        <h1 className="text-2xl font-bold text-navy-900 mb-2">Seller Access Required</h1>
-        <p className="text-navy-500 mb-4">Create your own shop account to sell on ShopMitra.</p>
-        <p className="text-sm text-navy-400">Register as a seller on the Register page — no demo accounts exist.</p>
+        <h1 className="text-2xl font-bold text-navy-900 mb-2">Admin or Merchant Access Required</h1>
+        <p className="text-navy-500 mb-4">This dashboard is available only to merchant and admin accounts.</p>
       </div>
     );
   }
@@ -27,7 +26,9 @@ export default function AdminDashboard() {
     { id: 'dashboard', label: 'Dashboard', icon: <BarChart3 size={16} /> },
     { id: 'products', label: 'Products', icon: <Package size={16} /> },
     { id: 'orders', label: 'Orders', icon: <ShoppingBag size={16} /> },
-    { id: 'banners', label: 'Banners', icon: <ImageIcon size={16} /> },
+    { id: 'categories', label: 'Categories', icon: <Layers size={16} /> },
+    { id: 'coupons', label: 'Coupons', icon: <Tag size={16} /> },
+    { id: 'sections', label: 'Banners', icon: <ImageIcon size={16} /> },
     { id: 'customers', label: 'Customers', icon: <Users size={16} /> },
     { id: 'settings', label: 'Settings', icon: <EyeIcon /> },
   ];
@@ -48,7 +49,9 @@ export default function AdminDashboard() {
       {activeTab === 'dashboard' && <DashboardOverview />}
       {activeTab === 'products' && <ProductsManagement />}
       {activeTab === 'orders' && <OrdersManagement />}
-      {activeTab === 'banners' && <BannersManagement />}
+      {activeTab === 'categories' && <CategoriesManagement />}
+      {activeTab === 'coupons' && <CouponsManagement />}
+      {activeTab === 'sections' && <BannersManagement />}
       {activeTab === 'customers' && <CustomersManagement />}
       {activeTab === 'settings' && <StoreSettings />}
     </div>
@@ -326,6 +329,7 @@ function OrdersManagement() {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>('all');
+  const [addressOrder, setAddressOrder] = useState<Order | null>(null);
 
   const loadOrders = useCallback(() => {
     return fetch('/api/orders?scope=all')
@@ -382,6 +386,7 @@ function OrdersManagement() {
                 <th className="text-left px-4 py-3 font-medium text-navy-600">Order #</th>
                 <th className="text-left px-4 py-3 font-medium text-navy-600">Customer</th>
                 <th className="text-left px-4 py-3 font-medium text-navy-600">Date</th>
+                <th className="text-center px-4 py-3 font-medium text-navy-600">Address</th>
                 <th className="text-right px-4 py-3 font-medium text-navy-600">Total</th>
                 <th className="text-center px-4 py-3 font-medium text-navy-600">Payment</th>
                 <th className="text-center px-4 py-3 font-medium text-navy-600">Status</th>
@@ -397,6 +402,16 @@ function OrdersManagement() {
                     <p className="text-[11px] text-navy-400">{order.payment_method === 'cod' ? 'COD' : 'Prepaid'}</p>
                   </td>
                   <td className="px-4 py-3 text-navy-500 whitespace-nowrap">{new Date(order.created_at).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-center">
+                    {['confirmed', 'shipped', 'delivered'].includes(order.status) ? (
+                      <button
+                        onClick={() => setAddressOrder(order)}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-primary-700 hover:text-primary-800"
+                      >
+                        <MapPin size={13} /> View address
+                      </button>
+                    ) : <span className="text-xs text-navy-300">Available when confirmed</span>}
+                  </td>
                   <td className="px-4 py-3 text-right font-medium text-navy-900">{formatPrice(order.total)}</td>
                   <td className="px-4 py-3 text-center">
                     {order.payment_method === 'cod' ? (
@@ -435,13 +450,327 @@ function OrdersManagement() {
                 </tr>
               ))}
               {!loading && visible.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-navy-400">No orders in this view</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-navy-400">No orders in this view</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
       <p className="text-xs text-navy-400">Cancelling an order returns reserved stock automatically; re-opening re-reserves it when available.</p>
+      {addressOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setAddressOrder(null)}>
+          <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-xl" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="font-bold text-navy-900">Shipping address</h3>
+                <p className="text-xs text-navy-500 mt-1">Order {addressOrder.order_number}</p>
+              </div>
+              <button onClick={() => setAddressOrder(null)} aria-label="Close address" className="p-1 text-navy-400 hover:text-navy-700"><X size={18} /></button>
+            </div>
+            <div className="text-sm text-navy-700 space-y-1">
+              <p className="font-semibold text-navy-900">{addressOrder.shipping_address?.fullName}</p>
+              <p>{addressOrder.shipping_address?.phone}</p>
+              <p>{addressOrder.shipping_address?.addressLine1}</p>
+              {addressOrder.shipping_address?.addressLine2 && <p>{addressOrder.shipping_address.addressLine2}</p>}
+              <p>{[addressOrder.shipping_address?.city, addressOrder.shipping_address?.state, addressOrder.shipping_address?.postalCode].filter(Boolean).join(', ')}</p>
+              <p>{addressOrder.shipping_address?.country || 'India'}</p>
+            </div>
+            <button onClick={() => setAddressOrder(null)} className="mt-5 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700">Close</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const emptyCategoryForm = { name: '', slug: '', sort_order: '0' };
+
+function CategoriesManagement() {
+  const { dispatch } = useApp();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [formData, setFormData] = useState(emptyCategoryForm);
+  const [editCategory, setEditCategory] = useState<Category | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/categories?manage=1')
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to load categories');
+        if (active) setCategories(data.categories || []);
+      })
+      .catch((error) => {
+        if (active) dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'error', message: (error as Error).message } });
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, [dispatch]);
+
+  const updatePublicCategories = (items: Category[]) => {
+    dispatch({ type: 'SET_CATEGORIES', categories: items.filter((category) => category.is_active) });
+  };
+
+  const saveCategory = async () => {
+    const name = formData.name.trim();
+    if (!name) return;
+    try {
+      const response = await fetch(editCategory ? `/api/categories/${editCategory.id}` : '/api/categories', {
+        method: editCategory ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, name, sort_order: Number(formData.sort_order) || 0 }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to save category');
+      const next = editCategory
+        ? categories.map((category) => category.id === data.category.id ? data.category : category)
+        : [...categories, data.category];
+      setCategories(next);
+      updatePublicCategories(next);
+      setShowForm(false);
+      setEditCategory(null);
+      setFormData(emptyCategoryForm);
+      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'success', message: `Category ${editCategory ? 'updated' : 'created'}` } });
+    } catch (error) {
+      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'error', message: (error as Error).message } });
+    }
+  };
+
+  const edit = (category: Category) => {
+    setEditCategory(category);
+    setFormData({ name: category.name, slug: category.slug, sort_order: String(category.sort_order) });
+    setShowForm(true);
+  };
+
+  const toggleActive = async (category: Category) => {
+    try {
+      const response = await fetch(`/api/categories/${category.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: !category.is_active }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to update category');
+      const next = categories.map((item) => item.id === category.id ? data.category : item);
+      setCategories(next);
+      updatePublicCategories(next);
+    } catch (error) {
+      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'error', message: (error as Error).message } });
+    }
+  };
+
+  const remove = async (category: Category) => {
+    if (!confirm(`Delete category "${category.name}"? Products in this category will become uncategorized.`)) return;
+    try {
+      const response = await fetch(`/api/categories/${category.id}`, { method: 'DELETE' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to delete category');
+      const next = categories.filter((item) => item.id !== category.id);
+      setCategories(next);
+      updatePublicCategories(next);
+      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'success', message: 'Category deleted' } });
+    } catch (error) {
+      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'error', message: (error as Error).message } });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold text-navy-900">Categories ({categories.length})</h2>
+        <button onClick={() => { setEditCategory(null); setFormData(emptyCategoryForm); setShowForm(true); }} className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"><Plus size={14} /> Add Category</button>
+      </div>
+      {showForm && (
+        <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
+          <h3 className="font-bold text-navy-900">{editCategory ? 'Edit Category' : 'Create Category'}</h3>
+          <div className="grid sm:grid-cols-3 gap-3">
+            <label className="text-sm text-navy-700">Name *
+              <input value={formData.name} onChange={(event) => setFormData({ ...formData, name: event.target.value })} className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg" />
+            </label>
+            <label className="text-sm text-navy-700">Slug
+              <input value={formData.slug} onChange={(event) => setFormData({ ...formData, slug: event.target.value })} placeholder="auto-generated if empty" className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg" />
+            </label>
+            <label className="text-sm text-navy-700">Display order
+              <input type="number" min="0" value={formData.sort_order} onChange={(event) => setFormData({ ...formData, sort_order: event.target.value })} className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg" />
+            </label>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={saveCategory} className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium">{editCategory ? 'Save Changes' : 'Create Category'}</button>
+            <button onClick={() => setShowForm(false)} className="px-4 py-2 border border-gray-200 rounded-lg text-sm">Cancel</button>
+          </div>
+        </div>
+      )}
+      <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
+        {loading && <p className="p-5 text-sm text-navy-400">Loading categories...</p>}
+        {!loading && categories.length === 0 && <p className="p-5 text-sm text-navy-400">No categories yet.</p>}
+        {categories.map((category) => (
+          <div key={category.id} className="flex items-center justify-between gap-3 p-4">
+            <div><p className="font-medium text-navy-900">{category.name}</p><p className="text-xs text-navy-400">/{category.slug} · Order {category.sort_order}</p></div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => toggleActive(category)} className={`px-2 py-1 rounded text-xs ${category.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{category.is_active ? 'Active' : 'Inactive'}</button>
+              <button onClick={() => edit(category)} aria-label={`Edit ${category.name}`} className="p-2 text-navy-500 hover:text-primary-700"><Edit size={15} /></button>
+              <button onClick={() => remove(category)} aria-label={`Delete ${category.name}`} className="p-2 text-navy-500 hover:text-red-600"><Trash2 size={15} /></button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface AdminCoupon {
+  id: string;
+  code: string;
+  discount_type: 'percentage' | 'fixed';
+  discount_value: number;
+  min_order_amount: number;
+  is_active: boolean;
+}
+
+const emptyCouponForm = { code: '', discount_type: 'percentage' as 'percentage' | 'fixed', discount_value: '', min_order_amount: '' };
+
+function CouponsManagement() {
+  const { dispatch } = useApp();
+  const [coupons, setCoupons] = useState<AdminCoupon[]>([]);
+  const [formData, setFormData] = useState(emptyCouponForm);
+  const [editCoupon, setEditCoupon] = useState<AdminCoupon | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/coupons')
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to load coupons');
+        if (active) setCoupons(data.coupons || []);
+      })
+      .catch((error) => {
+        if (active) dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'error', message: (error as Error).message } });
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, [dispatch]);
+
+  const saveCoupon = async () => {
+    const payload = {
+      code: formData.code.trim().toUpperCase(),
+      discount_type: formData.discount_type,
+      discount_value: Number(formData.discount_value),
+      min_order_amount: Number(formData.min_order_amount) || 0,
+    };
+    if (!payload.code || !payload.discount_value) return;
+    try {
+      const response = await fetch(editCoupon ? `/api/coupons/${editCoupon.id}` : '/api/coupons', {
+        method: editCoupon ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to save coupon');
+      setCoupons((items) => editCoupon
+        ? items.map((item) => item.id === data.coupon.id ? data.coupon : item)
+        : [...items, data.coupon]);
+      setShowForm(false);
+      setEditCoupon(null);
+      setFormData(emptyCouponForm);
+      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'success', message: `Coupon ${editCoupon ? 'updated' : 'created'}` } });
+    } catch (error) {
+      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'error', message: (error as Error).message } });
+    }
+  };
+
+  const updateCoupon = async (coupon: AdminCoupon, update: Partial<AdminCoupon>) => {
+    try {
+      const response = await fetch(`/api/coupons/${coupon.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(update),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to update coupon');
+      setCoupons((items) => items.map((item) => item.id === coupon.id ? data.coupon : item));
+    } catch (error) {
+      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'error', message: (error as Error).message } });
+    }
+  };
+
+  const removeCoupon = async (coupon: AdminCoupon) => {
+    if (!confirm(`Delete coupon ${coupon.code}?`)) return;
+    try {
+      const response = await fetch(`/api/coupons/${coupon.id}`, { method: 'DELETE' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to delete coupon');
+      setCoupons((items) => items.filter((item) => item.id !== coupon.id));
+    } catch (error) {
+      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'error', message: (error as Error).message } });
+    }
+  };
+
+  const edit = (coupon: AdminCoupon) => {
+    setEditCoupon(coupon);
+    setFormData({
+      code: coupon.code,
+      discount_type: coupon.discount_type,
+      discount_value: String(coupon.discount_value),
+      min_order_amount: String(coupon.min_order_amount),
+    });
+    setShowForm(true);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold text-navy-900">Coupons ({coupons.length})</h2>
+        <button onClick={() => { setEditCoupon(null); setFormData(emptyCouponForm); setShowForm(true); }} className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"><Plus size={14} /> Add Coupon</button>
+      </div>
+      {showForm && (
+        <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
+          <h3 className="font-bold text-navy-900">{editCoupon ? 'Edit Coupon' : 'Create Coupon'}</h3>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <label className="text-sm text-navy-700">Code *
+              <input value={formData.code} onChange={(event) => setFormData({ ...formData, code: event.target.value })} className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg uppercase" />
+            </label>
+            <label className="text-sm text-navy-700">Discount type
+              <select value={formData.discount_type} onChange={(event) => setFormData({ ...formData, discount_type: event.target.value as 'percentage' | 'fixed' })} className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg">
+                <option value="percentage">Percentage (%)</option><option value="fixed">Fixed (₹)</option>
+              </select>
+            </label>
+            <label className="text-sm text-navy-700">Discount value *
+              <input type="number" min="0.01" max={formData.discount_type === 'percentage' ? 100 : undefined} value={formData.discount_value} onChange={(event) => setFormData({ ...formData, discount_value: event.target.value })} className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg" />
+            </label>
+            <label className="text-sm text-navy-700">Minimum order (₹)
+              <input type="number" min="0" value={formData.min_order_amount} onChange={(event) => setFormData({ ...formData, min_order_amount: event.target.value })} className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg" />
+            </label>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={saveCoupon} className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium">{editCoupon ? 'Save Changes' : 'Create Coupon'}</button>
+            <button onClick={() => setShowForm(false)} className="px-4 py-2 border border-gray-200 rounded-lg text-sm">Cancel</button>
+          </div>
+        </div>
+      )}
+      <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
+        {loading && <p className="p-5 text-sm text-navy-400">Loading coupons...</p>}
+        {!loading && coupons.length === 0 && <p className="p-5 text-sm text-navy-400">No coupons yet.</p>}
+        {coupons.map((coupon) => (
+          <div key={coupon.id} className="flex items-center justify-between gap-3 p-4">
+            <div>
+              <p className="font-semibold text-navy-900">{coupon.code}</p>
+              <p className="text-xs text-navy-500">{coupon.discount_type === 'percentage' ? `${coupon.discount_value}% off` : `${formatPrice(coupon.discount_value)} off`} · Min. order {formatPrice(coupon.min_order_amount)}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => updateCoupon(coupon, { is_active: !coupon.is_active })} className={`px-2 py-1 rounded text-xs ${coupon.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{coupon.is_active ? 'Active' : 'Inactive'}</button>
+              <button onClick={() => edit(coupon)} aria-label={`Edit ${coupon.code}`} className="p-2 text-navy-500 hover:text-primary-700"><Edit size={15} /></button>
+              <button onClick={() => removeCoupon(coupon)} aria-label={`Delete ${coupon.code}`} className="p-2 text-navy-500 hover:text-red-600"><Trash2 size={15} /></button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -449,11 +778,23 @@ function OrdersManagement() {
 const emptyBannerForm = { title: '', subtitle: '', cta_text: '', cta_link: '', image_url: '', background_color: 'from-indigo-600 to-purple-600' };
 
 function BannersManagement() {
-  const { state } = useApp();
-  const { addBanner, updateBanner, deleteBanner, toggleBanner } = useAdminMutations();
+  const { dispatch } = useApp();
+  const [banners, setBanners] = useState<Banner[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editBanner, setEditBanner] = useState<Banner | null>(null);
   const [formData, setFormData] = useState(emptyBannerForm);
+
+  useEffect(() => {
+    fetch('/api/banners?manage=1')
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to load banners');
+        const managed = data.banners || [];
+        setBanners(managed);
+        dispatch({ type: 'SET_BANNERS', banners: managed.filter((banner: Banner) => banner.is_active) });
+      })
+      .catch((error) => dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'error', message: (error as Error).message } }));
+  }, [dispatch]);
 
   const openCreate = () => {
     setEditBanner(null);
@@ -481,20 +822,61 @@ function BannersManagement() {
 
   const handleSave = async () => {
     if (!formData.title.trim()) return;
-    const ok = editBanner ? await updateBanner(editBanner.id, formData) : await addBanner(formData);
-    if (ok) closeForm();
+    try {
+      const response = await fetch(editBanner ? `/api/banners/${editBanner.id}` : '/api/banners', {
+        method: editBanner ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to save banner');
+      const next = editBanner
+        ? banners.map((banner) => banner.id === data.banner.id ? data.banner : banner)
+        : [...banners, data.banner];
+      setBanners(next);
+      dispatch({ type: 'SET_BANNERS', banners: next.filter((banner) => banner.is_active) });
+      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'success', message: `Banner ${editBanner ? 'updated' : 'created'}` } });
+      closeForm();
+    } catch (error) {
+      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'error', message: (error as Error).message } });
+    }
   };
 
   const handleDelete = async (bannerId: string) => {
-    if (confirm('Delete this banner?')) {
-      await deleteBanner(bannerId);
+    if (!confirm('Delete this banner?')) return;
+    try {
+      const response = await fetch(`/api/banners/${bannerId}`, { method: 'DELETE' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to delete banner');
+      const next = banners.filter((banner) => banner.id !== bannerId);
+      setBanners(next);
+      dispatch({ type: 'SET_BANNERS', banners: next.filter((banner) => banner.is_active) });
+    } catch (error) {
+      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'error', message: (error as Error).message } });
+    }
+  };
+
+  const toggleActive = async (banner: Banner) => {
+    try {
+      const response = await fetch(`/api/banners/${banner.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: !banner.is_active }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to update banner');
+      const next = banners.map((item) => item.id === banner.id ? data.banner : item);
+      setBanners(next);
+      dispatch({ type: 'SET_BANNERS', banners: next.filter((item) => item.is_active) });
+    } catch (error) {
+      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'error', message: (error as Error).message } });
     }
   };
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-bold text-navy-900">Banners ({state.banners.length})</h2>
+        <h2 className="text-lg font-bold text-navy-900">Banners ({banners.length})</h2>
         <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"><Plus size={14} /> Add Banner</button>
       </div>
 
@@ -525,7 +907,7 @@ function BannersManagement() {
       )}
 
       <div className="grid gap-4">
-        {state.banners.map((banner: Banner) => (
+        {banners.map((banner: Banner) => (
           <div key={banner.id} className={`bg-gradient-to-r ${banner.background_color || 'from-indigo-600 to-purple-600'} rounded-xl p-5 text-white relative overflow-hidden`}>
             {banner.image_url && <img src={banner.image_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20" />}
             <div className="relative flex justify-between items-center">
@@ -535,7 +917,7 @@ function BannersManagement() {
                 {banner.cta_text && <span className="inline-block mt-2 px-3 py-1 bg-white/20 rounded text-sm">{banner.cta_text}</span>}
               </div>
               <div className="flex gap-2">
-                <button onClick={() => toggleBanner(banner)} className={`px-3 py-1 rounded text-xs font-medium ${banner.is_active ? 'bg-green-500/30' : 'bg-red-500/30'}`}>{banner.is_active ? 'Active' : 'Inactive'}</button>
+                <button onClick={() => toggleActive(banner)} className={`px-3 py-1 rounded text-xs font-medium ${banner.is_active ? 'bg-green-500/30' : 'bg-red-500/30'}`}>{banner.is_active ? 'Active' : 'Inactive'}</button>
                 <button onClick={() => startEdit(banner)} aria-label="Edit banner" className="p-1.5 bg-white/20 rounded hover:bg-white/30"><Edit size={14} /></button>
                 <button onClick={() => handleDelete(banner.id)} aria-label="Delete banner" className="p-1.5 bg-white/20 rounded hover:bg-white/30"><Trash2 size={14} /></button>
               </div>

@@ -1,23 +1,63 @@
 'use client';
 
 import { use } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Star, ShoppingCart, Truck, Shield, RotateCcw, Minus, Plus, ChevronRight, Package, PackageSearch } from 'lucide-react';
+import { Star, ShoppingCart, Truck, Shield, RotateCcw, Minus, Plus, ChevronRight, Package, PackageSearch, MessageSquareText } from 'lucide-react';
 import { useApp } from '@/store/AppContext';
 import { formatPrice, getDiscount } from '@/lib/utils';
 import { ProductDetailSkeleton } from '@/components/shop/Skeletons';
+
+interface ProductReview {
+  id: string;
+  rating: number;
+  comment: string;
+  reviewer_name: string;
+  created_at: string;
+}
 
 export default function ProductDetail({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const router = useRouter();
   const { state, dispatch } = useApp();
+  const product = state.products.find((p) => p.slug === slug);
   const [quantity, setQuantity] = useState(1);
   const [pincode, setPincode] = useState('');
   const [pincodeResult, setPincodeResult] = useState<string | null>(null);
+  const [reviews, setReviews] = useState<ProductReview[]>([]);
+  const [ownReview, setOwnReview] = useState<{ rating: number; comment: string } | null>(null);
+  const [eligibleToReview, setEligibleToReview] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewsForProduct, setReviewsForProduct] = useState<string | null>(null);
+  const [reviewSaving, setReviewSaving] = useState(false);
+  const [reviewError, setReviewError] = useState('');
+  const reviewRequestId = product?.id || encodeURIComponent(slug);
+  const reviewLoading = reviewsForProduct !== reviewRequestId;
 
-  const product = state.products.find((p) => p.slug === slug);
+  useEffect(() => {
+    let active = true;
+    const requestId = product?.id || encodeURIComponent(slug);
+    fetch(`/api/products/${requestId}/reviews`)
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not load reviews');
+        if (!active) return;
+        setReviews(data.reviews || []);
+        setOwnReview(data.own_review || null);
+        setReviewRating(data.own_review?.rating || 0);
+        setReviewComment(data.own_review?.comment || '');
+        setEligibleToReview(Boolean(data.eligible_to_review));
+      })
+      .catch((error) => {
+        if (active) setReviewError((error as Error).message);
+      })
+      .finally(() => {
+        if (active) setReviewsForProduct(requestId);
+      });
+    return () => { active = false; };
+  }, [product?.id, slug, state.user?.id]);
 
   // Catalog still streaming in — shimmer placeholder instead of a false 404.
   if (state.loading) {
@@ -48,6 +88,36 @@ export default function ProductDetail({ params }: { params: Promise<{ slug: stri
   const checkPincode = () => {
     if (pincode.length === 6) setPincodeResult(`Delivery available to ${pincode}. Estimated: 3-5 business days.`);
     else setPincodeResult('Please enter a valid 6-digit pincode.');
+  };
+
+  const submitReview = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!reviewRating) {
+      setReviewError('Please choose a star rating.');
+      return;
+    }
+    setReviewSaving(true);
+    setReviewError('');
+    try {
+      const response = await fetch(`/api/products/${product.id}/reviews`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating: reviewRating, comment: reviewComment }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not save your review');
+      setOwnReview(data.own_review);
+      setReviews((current) => [data.review, ...current.filter((review) => review.id !== data.review.id)]);
+      dispatch({
+        type: 'UPDATE_PRODUCT',
+        product: { ...product, rating: data.rating, review_count: data.reviewCount },
+      });
+      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'success', message: 'Thanks for sharing your review!' } });
+    } catch (error) {
+      setReviewError((error as Error).message);
+    } finally {
+      setReviewSaving(false);
+    }
   };
 
   return (
@@ -165,6 +235,84 @@ export default function ProductDetail({ params }: { params: Promise<{ slug: stri
           </div>
         )}
       </div>
+
+      <section className="mt-12 border-t border-gray-100 pt-8" aria-labelledby="reviews-heading">
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <div>
+            <p className="mb-1 flex items-center gap-2 text-sm font-medium text-[#b65d36]"><MessageSquareText size={16} /> Customer feedback</p>
+            <h2 id="reviews-heading" className="text-xl font-bold text-navy-900">Ratings & Reviews</h2>
+          </div>
+          <p className="text-sm text-navy-500">{product.review_count} {product.review_count === 1 ? 'rating' : 'ratings'}</p>
+        </div>
+
+        {state.isLoggedIn && state.user?.role === 'customer' && eligibleToReview && (
+          <form onSubmit={submitReview} className="mb-6 rounded-2xl border border-[#eee8df] bg-[#fdfbf8] p-5">
+            <h3 className="font-semibold text-[#302b27]">{ownReview ? 'Update your review' : 'Share your experience'}</h3>
+            <div className="my-3 flex items-center gap-1" role="group" aria-label="Choose a rating from 1 to 5 stars">
+              {Array.from({ length: 5 }, (_, index) => {
+                const value = index + 1;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setReviewRating(value)}
+                    aria-label={`${value} star${value === 1 ? '' : 's'}`}
+                    aria-pressed={reviewRating === value}
+                    className="rounded p-1 transition hover:scale-110 focus:outline-none focus:ring-2 focus:ring-[#b65d36]"
+                  >
+                    <Star size={25} className={value <= reviewRating ? 'fill-amber-400 text-amber-500' : 'text-gray-300'} />
+                  </button>
+                );
+              })}
+            </div>
+            <label htmlFor="product-review" className="mb-1 block text-sm font-medium text-navy-700">Review (optional)</label>
+            <textarea
+              id="product-review"
+              maxLength={1000}
+              rows={3}
+              value={reviewComment}
+              onChange={(event) => setReviewComment(event.target.value)}
+              placeholder="What did you think of this product?"
+              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#b65d36]/30"
+            />
+            {reviewError && <p role="alert" className="mt-2 text-sm text-red-600">{reviewError}</p>}
+            <button type="submit" disabled={reviewSaving} className="mt-3 rounded-xl bg-[#b65d36] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#984a2b] disabled:opacity-50">
+              {reviewSaving ? 'Saving…' : ownReview ? 'Update review' : 'Submit review'}
+            </button>
+            <p className="mt-2 text-xs text-navy-400">Only verified customers with a delivered order can review this product.</p>
+          </form>
+        )}
+
+        {!state.isLoggedIn && (
+          <p className="mb-5 text-sm text-navy-500"><Link href={`/login?redirect=${encodeURIComponent(`/product/${slug}`)}`} className="font-medium text-[#a64f2e] hover:underline">Sign in</Link> to share a review after your order is delivered.</p>
+        )}
+        {state.isLoggedIn && state.user?.role === 'customer' && !eligibleToReview && !ownReview && (
+          <p className="mb-5 text-sm text-navy-500">Purchased this item? You can leave a review once your order is delivered.</p>
+        )}
+        {reviewError && !eligibleToReview && <p role="alert" className="mb-4 text-sm text-red-600">{reviewError}</p>}
+        {reviewLoading ? (
+          <p className="text-sm text-navy-400">Loading reviews…</p>
+        ) : reviews.length > 0 ? (
+          <div className="space-y-3">
+            {reviews.map((review) => (
+              <article key={review.id} className="rounded-xl border border-gray-100 bg-white p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-navy-900">{review.reviewer_name}</p>
+                    <div className="mt-1 flex gap-0.5" aria-label={`${review.rating} out of 5 stars`}>
+                      {Array.from({ length: 5 }, (_, index) => <Star key={index} size={14} className={index < review.rating ? 'fill-amber-400 text-amber-500' : 'text-gray-200'} />)}
+                    </div>
+                  </div>
+                  <time className="text-xs text-navy-400" dateTime={review.created_at}>{new Date(review.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</time>
+                </div>
+                {review.comment && <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-navy-600">{review.comment}</p>}
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-xl bg-gray-50 p-4 text-sm text-navy-500">No customer reviews yet. Be the first to share your experience.</p>
+        )}
+      </section>
 
       {/* Related Products */}
       {relatedProducts.length > 0 && (

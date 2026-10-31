@@ -3,11 +3,16 @@ import { db } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { serializeBanner } from '@/lib/serialize';
 
-// GET /api/banners — public active banners
-export async function GET() {
+// GET /api/banners — public active banners; manage=1 includes inactive sections for admins.
+export async function GET(req: NextRequest) {
   try {
+    const manage = new URL(req.url).searchParams.get('manage') === '1';
+    if (manage && !(await requireAdmin())) {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
     const banners = await db.banner.findMany({
-      where: { isActive: true },
+      where: manage ? {} : { isActive: true },
       orderBy: { sortOrder: 'asc' },
     });
     return NextResponse.json({ banners: banners.map(serializeBanner) });
