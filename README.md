@@ -9,7 +9,7 @@ A production-grade e-commerce store built with **Next.js 16 (App Router) + TypeS
 - **Payments** — Dodo Payments hosted checkout embedded in-app (never navigates away), server-side verification, signature-verified webhooks, idempotent fulfillment with stock conservation; built-in sandbox mode when no API key is set
 - **Transactional email (Resend)** — order placed, payment confirmed, shipped, delivered, cancelled; every attempt is auditable in the `EmailLog` table (dev mode without a key logs emails instead of sending)
 - **Admin workflow** — dashboard stats, order status pipeline (pending → confirmed → shipped → delivered / cancelled with stock restore), COD mark-paid, customer enable/disable + roles
-- **Auth** — bcrypt-hashed passwords, signed httpOnly session cookies, login-gated ordering
+- **Auth & multi-vendor marketplace** — bcrypt-hashed passwords, signed httpOnly session cookies, login-gated ordering; open registration as Shopper or Seller, each seller runs their own shop (own products, own orders, "Sold by" branding)
 - **Shimmer skeleton loading** across home / products / detail / checkout
 
 ## 🚀 Quick start (VS Code)
@@ -36,12 +36,12 @@ npm run dev          # → http://localhost:3000
 
 That's it — `npm run db:push` is self-healing: pointed at a remote database (Neon) it just pushes the schema; pointed at the bundled sandbox PostgreSQL it boots that automatically.
 
-### Demo accounts
+### Accounts — no demo credentials
 
-| Role     | Email                | Password  |
-| -------- | -------------------- | --------- |
-| Admin    | admin@shopmitra.in   | admin123  |
-| Customer | demo@shopmitra.in    | demo123   |
+There are **no demo accounts or preset passwords** — every user creates their own on `/register` with their own email and password:
+
+- **Shopper** — browse, buy, track orders.
+- **Sell on ShopMitra** — multi-vendor marketplace: anyone can open their own shop account (seller dashboard). Every seller manages **only their own products** (create/edit/delete), sees **only orders containing their products**, and their storefront listings show **"Sold by <shop name>"**. Multiple sellers can run their shops side by side.
 
 Coupons: `SAVE10` (10%), `FIRST20` (20% first order), `SHOP15` (15%).
 

@@ -31,7 +31,8 @@ const createOrderSchema = z.object({
   coupon_code: z.string().max(50).optional().nullable(),
 });
 
-// GET /api/orders — user's own orders (or all orders for admin)
+// GET /api/orders — user's own orders; scope=all for admin (super_admin: all orders,
+// seller: only orders containing their products)
 export async function GET(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) {
@@ -43,8 +44,15 @@ export async function GET(req: NextRequest) {
     const scope = searchParams.get('scope');
     const isAdmin = user.role === 'admin' || user.role === 'super_admin';
 
+    let where: { userId?: string | null; items?: { some: { product: { sellerId: string } } } } = { userId: user.id };
+    if (scope === 'all' && isAdmin) {
+      where = user.role === 'super_admin'
+        ? {}
+        : { items: { some: { product: { sellerId: user.id } } } };
+    }
+
     const orders = await db.order.findMany({
-      where: scope === 'all' && isAdmin ? {} : { userId: user.id },
+      where,
       include: { items: true },
       orderBy: { createdAt: 'desc' },
     });

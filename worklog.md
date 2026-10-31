@@ -153,3 +153,16 @@ Stage Summary:
 - Verification: mobile 390px screenshot — search + cart icons right ✓, "Add to Cart" → badge "1" + toast ✓; desktop 1366px unchanged ✓
 - Follow-up 2 (same day): mobile navbar right group = Search · Wishlist · Cart (wishlist icon added between them, red count badge on all devices); hamburger menu se Wishlist/Cart rows removed — menu ab sirf Account (ya Login/Register) · Categories · Track Order · Admin
 - Verification: tsc clean; mobile 390px — 3 icons right ✓, menu clean ✓; desktop 1366px unchanged ✓
+
+## Stage 7 — No demo accounts + multi-vendor marketplace (sellers sell own products) (2026-10-31)
+
+- Demo accounts fully removed: seed.ts no longer creates admin@shopmitra.in / demo@shopmitra.in; login page "Demo Accounts" box and admin "Login as:" hint deleted; scripts/cleanup-demo.ts removes any legacy demo users + their orders/addresses (DB verified 0 demo accounts)
+- Open registration with account type (register page): 🛍️ Shopper (role customer) vs 🏪 Sell on ShopMitra (role admin/seller) with Shop Name field + "Sold by <shop>" hint; sellers land on /admin after signup; /api/auth/register accepts accountType + shopName (shop defaults to "<Name>'s Shop")
+- Multi-vendor data model: User.shopName?, Product.sellerId → User (onDelete SetNull); db:push applied
+- Seller scoping (server-enforced):
+  - POST /api/products stamps sellerId = creator; sellers listed only via GET /api/products?manage=1 (own products incl. inactive); PATCH/DELETE [id] reject non-owners (403 "You can only manage your own products"); super_admin manages everything
+  - GET /api/orders?scope=all: seller sees only orders containing their products (items.some.product.sellerId); PATCH /api/orders/[orderNumber] guarded the same way; admin/stats scoped (seller revenue = their orderItems aggregate, own products/low-stock, distinct buyers)
+  - Admin UI: header switches to "Seller Dashboard • <name>", products tab fetches the scoped manage list with "Showing N of your products" + empty-state CTA
+- Storefront: product detail shows "Sold by <shop name>" chip (public /api/products now includes seller {name, shopName}); serializeProduct/types extended
+- Dev tooling: scripts/dev-bg.mjs launches the dev server as a detached daemon (fixes spawn next ENOENT by prepending node_modules/.bin to PATH); scripts/db-inspect.ts quick DB peek
+- Verification: tsc + eslint clean; API E2E — seller B PATCH/DELETE + order PATCH on A's data → 403 ✓, seller A status update ✓, scope=all A sees own orders / B sees none ✓, stats scoped (revenue = own items) ✓; browser E2E — seller register → auto-redirect to Seller Dashboard (toast "Shop account created") ✓, Products empty-state → Add Product "Jaipuri Cotton Kurti" → appears in scoped list ✓, detail page "Sold by Priya Collection" ✓, login page demo box gone ✓; live-preview user self-registered seller account (admin@shopmitra.in / shop "Mitea") — first real seller signup; E2E test users/data cleaned afterwards (only the real user account remains)

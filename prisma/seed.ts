@@ -1,10 +1,11 @@
 /**
  * ShopMitra Database Seeder
- * Populates SQLite (via Prisma) with demo catalog data.
+ * Populates the database with the demo catalog (categories, products, banners, coupons).
+ * NOTE: no demo user accounts are created — everyone registers their own
+ * account (Shopper or Seller) through /register.
  * Run: npx tsx prisma/seed.ts  (or bun prisma/seed.ts)
  */
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
 
 const db = new PrismaClient();
 
@@ -14,29 +15,6 @@ async function main() {
     console.log('✅ Database already seeded');
     return;
   }
-
-  // ---- Users (passwords properly hashed) ----
-  await db.user.upsert({
-    where: { email: 'admin@shopmitra.in' },
-    update: {},
-    create: {
-      email: 'admin@shopmitra.in',
-      passwordHash: await bcrypt.hash('admin123', 10),
-      name: 'Admin User',
-      role: 'super_admin',
-    },
-  });
-
-  await db.user.upsert({
-    where: { email: 'demo@shopmitra.in' },
-    update: {},
-    create: {
-      email: 'demo@shopmitra.in',
-      passwordHash: await bcrypt.hash('demo123', 10),
-      name: 'Demo Customer',
-      role: 'customer',
-    },
-  });
 
   // ---- Categories ----
   const categoryData = [

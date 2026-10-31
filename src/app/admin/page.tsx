@@ -16,9 +16,9 @@ export default function AdminDashboard() {
     return (
       <div className="max-w-lg mx-auto px-4 py-16 text-center">
         <ShieldAlert size={56} className="text-navy-300 mx-auto mb-4" strokeWidth={1.4} />
-        <h1 className="text-2xl font-bold text-navy-900 mb-2">Admin Access Required</h1>
-        <p className="text-navy-500 mb-4">You need admin privileges to access this page.</p>
-        <p className="text-sm text-navy-400">Login as: admin@shopmitra.in / admin123</p>
+        <h1 className="text-2xl font-bold text-navy-900 mb-2">Seller Access Required</h1>
+        <p className="text-navy-500 mb-4">Create your own shop account to sell on ShopMitra.</p>
+        <p className="text-sm text-navy-400">Register as a seller on the Register page — no demo accounts exist.</p>
       </div>
     );
   }
@@ -35,7 +35,7 @@ export default function AdminDashboard() {
   return (
     <div className="shell py-6">
       <div className="flex items-center justify-between mb-6">
-        <div><h1 className="text-2xl font-bold text-navy-900">Admin Dashboard</h1><p className="text-sm text-navy-500">Manage your store • Role: {state.user?.role}</p></div>
+        <div><h1 className="text-2xl font-bold text-navy-900">{state.user?.role === 'super_admin' ? 'Admin Dashboard' : 'Seller Dashboard'}</h1><p className="text-sm text-navy-500">{state.user?.role === 'super_admin' ? 'Manage the platform' : `Manage your shop${state.user?.name ? ` • ${state.user.name}` : ''}`}</p></div>
         <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">● Live</span>
       </div>
 
@@ -154,12 +154,22 @@ function ProductsManagement() {
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [formData, setFormData] = useState(emptyForm);
+  // Scoped server list: sellers get ONLY their own products (?manage=1).
+  const [products, setProducts] = useState<Product[]>([]);
+  const isSuper = state.user?.role === 'super_admin';
+
+  const loadProducts = () => {
+    fetch('/api/products?manage=1')
+      .then((r) => (r.ok ? r.json() : { products: [] }))
+      .then((d) => setProducts(d.products || []));
+  };
 
   useEffect(() => {
     fetch('/api/categories').then((r) => r.json()).then((data) => setCategories(data.categories || []));
+    loadProducts();
   }, []);
 
-  const filtered = state.products.filter((p) => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filtered = products.filter((p) => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const handleSave = async () => {
     if (!formData.name || !formData.price) return;
@@ -168,12 +178,14 @@ function ProductsManagement() {
       setShowAddForm(false);
       setEditProduct(null);
       setFormData(emptyForm);
+      loadProducts();
     }
   };
 
   const handleDelete = async (productId: string) => {
     if (confirm('Are you sure you want to delete this product?')) {
       await deleteProduct(productId);
+      loadProducts();
     }
   };
 
@@ -244,6 +256,9 @@ function ProductsManagement() {
               </tr>
             </thead>
             <tbody>
+              {filtered.length === 0 && (
+                <tr><td colSpan={5} className="px-4 py-10 text-center text-sm text-navy-400">{searchTerm ? 'No products match your search.' : isSuper ? 'No products yet.' : 'No products yet — click “Add Product” to start selling.'}</td></tr>
+              )}
               {filtered.map((p) => (
                 <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50">
                   <td className="px-4 py-3">
@@ -266,7 +281,7 @@ function ProductsManagement() {
             </tbody>
           </table>
         </div>
-        <div className="px-4 py-3 border-t border-gray-100"><p className="text-sm text-navy-500">Showing {filtered.length} of {state.products.length} products</p></div>
+        <div className="px-4 py-3 border-t border-gray-100"><p className="text-sm text-navy-500">{isSuper ? `Showing ${filtered.length} of ${products.length} products` : `Showing ${filtered.length} of your products`}</p></div>
       </div>
     </div>
   );

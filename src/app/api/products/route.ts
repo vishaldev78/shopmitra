@@ -4,10 +4,28 @@ import { requireAdmin } from '@/lib/auth';
 import { serializeProduct } from '@/lib/serialize';
 import type { Prisma } from '@prisma/client';
 
-// GET /api/products — public catalog with optional filters
+// GET /api/products — public catalog with optional filters.
+// ?manage=1 → admin listing: sellers get ONLY their own products (incl. inactive),
+// super_admins get everything. Public catalog is never scoped.
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
+
+    if (searchParams.get('manage') === '1') {
+      const admin = await requireAdmin();
+      if (!admin) {
+        return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+      }
+      const where: Prisma.ProductWhereInput =
+        admin.role === 'super_admin' ? {} : { sellerId: admin.id };
+      const products = await db.product.findMany({
+        where,
+        include: { category: { select: { name: true } } },
+        orderBy: { createdAt: 'desc' },
+      });
+      return NextResponse.json({ products: products.map(serializeProduct) });
+    }
+
     const category = searchParams.get('category');
     const search = searchParams.get('search');
     const featured = searchParams.get('featured');
@@ -29,7 +47,7 @@ export async function GET(req: NextRequest) {
 
     const products = await db.product.findMany({
       where,
-      include: { category: { select: { name: true } } },
+      include: { category: { select: { name: true } }, seller: { select: { name: true, shopName: true } } },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -85,8 +103,9 @@ export async function POST(req: NextRequest) {
         stock: body.stock ? Number(body.stock) : 0,
         isActive: true,
         isFeatured: false,
+        sellerId: admin.id, // multi-vendor: every product belongs to the seller who created it
       },
-      include: { category: { select: { name: true } } },
+      include: { category: { select: { name: true } }, seller: { select: { name: true, shopName: true } } },
     });
 
     return NextResponse.json({ product: serializeProduct(product) }, { status: 201 });

@@ -236,13 +236,15 @@ export async function loginUser(
 export async function registerUser(
   email: string,
   password: string,
-  name: string
+  name: string,
+  accountType: 'customer' | 'seller' = 'customer',
+  shopName?: string
 ): Promise<{ success: boolean; user?: AuthUser; error?: string }> {
   try {
     const res = await fetch('/api/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'register', email, password, name }),
+      body: JSON.stringify({ action: 'register', email, password, name, accountType, ...(shopName ? { shopName } : {}) }),
     });
     const data = await res.json();
     if (!res.ok || !data.success) return { success: false, error: data.error || 'Registration failed' };

@@ -74,6 +74,14 @@ export default function ProductDetail({ params }: { params: Promise<{ slug: stri
             <p className="text-sm text-primary-600 font-medium mb-1">{product.brand}</p>
             <h1 className="text-2xl md:text-3xl font-bold text-navy-900">{product.name}</h1>
             <p className="text-sm text-navy-500 mt-1">SKU: {product.sku}</p>
+            {product.seller && (
+              <p className="text-sm text-navy-600 mt-2">
+                Sold by{' '}
+                <span className="font-semibold text-navy-900 bg-primary-50 border border-primary-100 px-2 py-0.5 rounded">
+                  {product.seller.shopName || product.seller.name}
+                </span>
+              </p>
+            )}
           </div>
 
           <div className="flex items-center gap-3">

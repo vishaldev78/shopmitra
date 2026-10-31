@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { serializeProduct } from '@/lib/serialize';
 
-// PATCH /api/products/[id] — admin update
+// PATCH /api/products/[id] — admin update (sellers can only update their own products)
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
   if (!admin) {
@@ -17,6 +17,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const existing = await db.product.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+
+    // Multi-vendor guard: sellers manage only their own catalog; super_admin manages all.
+    if (admin.role !== 'super_admin' && existing.sellerId !== admin.id) {
+      return NextResponse.json({ error: 'You can only manage your own products' }, { status: 403 });
     }
 
     const images =
@@ -36,7 +41,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         sku: body.sku != null ? String(body.sku) : undefined,
         stock: body.stock != null ? Number(body.stock) : undefined,
       },
-      include: { category: { select: { name: true } } },
+      include: { category: { select: { name: true } }, seller: { select: { name: true, shopName: true } } },
     });
 
     return NextResponse.json({ product: serializeProduct(product) });
@@ -46,7 +51,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   }
 }
 
-// DELETE /api/products/[id] — admin delete
+// DELETE /api/products/[id] — admin delete (sellers can only delete their own products)
 export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
   if (!admin) {
@@ -55,6 +60,15 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: str
 
   try {
     const { id } = await ctx.params;
+
+    const existing = await db.product.findUnique({ where: { id }, select: { sellerId: true } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+    if (admin.role !== 'super_admin' && existing.sellerId !== admin.id) {
+      return NextResponse.json({ error: 'You can only manage your own products' }, { status: 403 });
+    }
+
     await db.product.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {

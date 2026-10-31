@@ -22,6 +22,7 @@ export interface Product {
   is_active: boolean;
   tags: string[];
   specifications: Record<string, string>;
+  seller?: { name: string; shopName: string | null } | null;
   created_at: string;
 }
 

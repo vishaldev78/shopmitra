@@ -7,6 +7,8 @@ const registerSchema = z.object({
   name: z.string().min(1).max(100),
   email: z.string().email().max(255),
   password: z.string().min(6).max(128),
+  accountType: z.enum(['customer', 'seller']).optional().default('customer'),
+  shopName: z.string().min(2).max(60).optional(),
 });
 
 const loginSchema = z.object({
@@ -30,19 +32,22 @@ export async function POST(req: NextRequest) {
       if (!parsed.success) {
         return NextResponse.json({ success: false, error: 'Invalid input. Password must be at least 6 characters.' }, { status: 400 });
       }
-      const { name, email, password } = parsed.data;
+      const { name, email, password, accountType, shopName } = parsed.data;
 
       const existing = await db.user.findUnique({ where: { email: email.toLowerCase() } });
       if (existing) {
         return NextResponse.json({ success: false, error: 'Email already registered' }, { status: 409 });
       }
 
+      // Sellers register as admins of their own shop (multi-vendor marketplace).
+      const isSeller = accountType === 'seller';
       const user = await db.user.create({
         data: {
           email: email.toLowerCase(),
           passwordHash: await hashPassword(password),
           name,
-          role: 'customer',
+          role: isSeller ? 'admin' : 'customer',
+          ...(isSeller ? { shopName: shopName?.trim() || `${name}'s Shop` } : {}),
         },
       });
 

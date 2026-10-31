@@ -2,7 +2,7 @@ import type { Product, Order, Banner, Category, OrderItem, AdminUserRow, Shippin
 
 type AnyRecord = Record<string, unknown>;
 
-export function serializeProduct(p: AnyRecord & { category?: { name: string } | null }): Product {
+export function serializeProduct(p: AnyRecord & { category?: { name: string } | null; seller?: { name: string; shopName: string | null } | null }): Product {
   return {
     id: p.id as string,
     name: p.name as string,
@@ -24,6 +24,7 @@ export function serializeProduct(p: AnyRecord & { category?: { name: string } | 
     tags: safeParseArray(p.tags as string),
     specifications: safeParseObject(p.specifications as string),
     created_at: (p.createdAt as Date).toISOString(),
+    seller: p.seller ? { name: p.seller.name as string, shopName: (p.seller.shopName as string | null) ?? null } : null,
   };
 }
 

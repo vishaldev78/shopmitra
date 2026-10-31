@@ -12,11 +12,13 @@ model User {
   email        String   @unique
   passwordHash String
   name         String
-  role         String   @default("customer") // customer | admin | super_admin
+  role         String   @default("customer") // customer | admin (seller) | super_admin
+  shopName     String?  // seller's public shop name (role = admin)
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   orders       Order[]
   addresses    Address[]
+  products     Product[]
 }
 
 model Address {
@@ -67,6 +69,8 @@ model Product {
   tags             String      @default("[]") // JSON array
   specifications   String      @default("{}") // JSON object
   dodoProductId    String?     // Dodo Payments product id (pdt_...) synced on checkout
+  sellerId         String?     // owning seller (User with role admin/super_admin); null = platform catalog
+  seller           User?       @relation(fields: [sellerId], references: [id], onDelete: SetNull)
   createdAt        DateTime    @default(now())
   orderItems       OrderItem[]
 }

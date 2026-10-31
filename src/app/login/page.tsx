@@ -67,11 +67,6 @@ function LoginContent() {
           <button type="submit" disabled={submitting} className="w-full py-3 bg-primary-600 text-white rounded-xl font-semibold hover:bg-primary-700 transition disabled:opacity-50">{submitting ? 'Signing in...' : 'Sign In'}</button>
           <p className="text-center text-sm text-navy-500">Don&apos;t have an account? <Link href="/register" className="text-primary-600 font-medium">Create one</Link></p>
         </form>
-        <div className="mt-4 p-3 bg-blue-50 rounded-lg text-xs text-blue-700">
-          <p className="font-semibold mb-1">Demo Accounts:</p>
-          <p>Admin: admin@shopmitra.in / admin123</p>
-          <p>Customer: demo@shopmitra.in / demo123</p>
-        </div>
       </div>
     </div>
   );

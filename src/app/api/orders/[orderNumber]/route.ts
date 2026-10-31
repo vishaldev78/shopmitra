@@ -62,6 +62,17 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ orderNumb
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
+    // Multi-vendor guard: sellers may only manage orders that contain their products.
+    if (user.role !== 'super_admin') {
+      const productIds = order.items.map((i) => i.productId).filter((v): v is string => Boolean(v));
+      const ownCount = productIds.length
+        ? await db.product.count({ where: { id: { in: productIds }, sellerId: user.id } })
+        : 0;
+      if (ownCount === 0) {
+        return NextResponse.json({ error: 'You can only manage orders containing your products' }, { status: 403 });
+      }
+    }
+
     const { status, payment_status } = parsed.data;
     const previousStatus = order.status;
     let paymentFinalizedHere = false;
