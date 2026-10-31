@@ -103,6 +103,7 @@ export interface AdminUserRow {
   name: string;
   email: string;
   role: string;
+  shop_name: string | null;
   is_active: boolean;
   created_at: string;
   order_count: number;
@@ -124,6 +125,13 @@ export interface SavedAddress {
   isDefault: boolean;
 }
 
+export interface AdminAccountTotals {
+  total: number;
+  merchants: number;
+  customers: number;
+  blocked: number;
+}
+
 export interface AdminStats {
   totalRevenue: number;
   totalOrders: number;
@@ -131,4 +139,6 @@ export interface AdminStats {
   totalProducts: number;
   lowStock: Product[];
   recentOrders: Order[];
+  /** Only present for super_admin — full account breakdown by role. */
+  accounts?: AdminAccountTotals;
 }

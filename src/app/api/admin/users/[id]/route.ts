@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { getSessionUser } from '@/lib/auth';
+import { getSessionUser, hashPassword } from '@/lib/auth';
 import { serializeUserRow } from '@/lib/serialize';
 
 const patchSchema = z.object({
   role: z.enum(['customer', 'admin', 'super_admin']).optional(),
   is_active: z.boolean().optional(),
+  // Password reset: super_admin only. Stored hashed — the original password
+  // can never be read back, so "view password" is replaced by "set a new one".
+  password: z.string().min(6).max(128).optional(),
 });
 
 // PATCH /api/admin/users/[id] — manage a customer/staff account.
@@ -21,8 +24,13 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
     const { id } = await ctx.params;
     const parsed = patchSchema.safeParse(await req.json());
-    if (!parsed.success || (!parsed.data.role && typeof parsed.data.is_active !== 'boolean')) {
+    if (!parsed.success || (!parsed.data.role && typeof parsed.data.is_active !== 'boolean' && !parsed.data.password)) {
       return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
+    }
+
+    // Only super_admins may reset passwords (it grants full account access).
+    if (parsed.data.password && admin.role !== 'super_admin') {
+      return NextResponse.json({ error: 'Only super admins can reset passwords' }, { status: 403 });
     }
 
     const target = await db.user.findUnique({ where: { id }, include: { _count: { select: { orders: true } } } });
@@ -44,6 +52,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       data: {
         ...(parsed.data.role ? { role: parsed.data.role } : {}),
         ...(typeof parsed.data.is_active === 'boolean' ? { isActive: parsed.data.is_active } : {}),
+        ...(parsed.data.password ? { passwordHash: await hashPassword(parsed.data.password) } : {}),
       },
       include: { _count: { select: { orders: true } } },
     });

@@ -37,6 +37,19 @@ export async function GET() {
       ? customerCount
       : new Set(orders.map((o) => o.userId).filter(Boolean)).size;
 
+    // Super admin gets the full account breakdown: every account on the platform,
+    // how many are merchants (sellers), customers, and disabled/blocked.
+    let accounts;
+    if (isSuper) {
+      const [total, merchants, customers, blocked] = await Promise.all([
+        db.user.count(),
+        db.user.count({ where: { role: 'admin' } }),
+        db.user.count({ where: { role: 'customer' } }),
+        db.user.count({ where: { isActive: false } }),
+      ]);
+      accounts = { total, merchants, customers, blocked };
+    }
+
     return NextResponse.json({
       stats: {
         totalRevenue,
@@ -45,6 +58,7 @@ export async function GET() {
         totalProducts: productCount,
         lowStock: lowStockProducts.map(serializeProduct),
         recentOrders: orders.slice(0, 5).map(serializeOrder),
+        ...(accounts ? { accounts } : {}),
       },
     });
   } catch (error) {

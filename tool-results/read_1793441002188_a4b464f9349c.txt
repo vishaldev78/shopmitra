@@ -1,0 +1,674 @@
+     1→     1→'use client';
+     2→     2→
+     3→     3→import { useState, useEffect, useCallback } from 'react';
+     4→     4→import { BarChart3, Package, Users, ShoppingBag, TrendingUp, AlertTriangle, Edit, Trash2, Plus, Search, Image as ImageIcon, ShieldAlert, Loader2, ShieldCheck, Ban } from 'lucide-react';
+     5→     5→import { useApp, useAdminMutations } from '@/store/AppContext';
+     6→     6→import { formatPrice, isAdminRole } from '@/lib/utils';
+     7→     7→import type { AdminStats, AdminUserRow, Banner, Product, Category } from '@/lib/types';
+     8→     8→
+     9→     9→type AdminTab = 'dashboard' | 'products' | 'orders' | 'customers' | 'banners' | 'settings';
+    10→    10→
+    11→    11→export default function AdminDashboard() {
+    12→    12→  const { state } = useApp();
+    13→    13→  const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
+    14→    14→
+    15→    15→  if (!state.isLoggedIn || !isAdminRole(state.user?.role)) {
+    16→    16→    return (
+    17→    17→      <div className="max-w-lg mx-auto px-4 py-16 text-center">
+    18→    18→        <ShieldAlert size={56} className="text-navy-300 mx-auto mb-4" strokeWidth={1.4} />
+    19→    19→        <h1 className="text-2xl font-bold text-navy-900 mb-2">Seller Access Required</h1>
+    20→    20→        <p className="text-navy-500 mb-4">Create your own shop account to sell on ShopMitra.</p>
+    21→    21→        <p className="text-sm text-navy-400">Register as a seller on the Register page — no demo accounts exist.</p>
+    22→    22→      </div>
+    23→    23→    );
+    24→    24→  }
+    25→    25→
+    26→    26→  const tabs: { id: AdminTab; label: string; icon: React.ReactNode }[] = [
+    27→    27→    { id: 'dashboard', label: 'Dashboard', icon: <BarChart3 size={16} /> },
+    28→    28→    { id: 'products', label: 'Products', icon: <Package size={16} /> },
+    29→    29→    { id: 'orders', label: 'Orders', icon: <ShoppingBag size={16} /> },
+    30→    30→    { id: 'banners', label: 'Banners', icon: <ImageIcon size={16} /> },
+    31→    31→    { id: 'customers', label: 'Customers', icon: <Users size={16} /> },
+    32→    32→    { id: 'settings', label: 'Settings', icon: <EyeIcon /> },
+    33→    33→  ];
+    34→    34→
+    35→    35→  return (
+    36→    36→    <div className="shell py-6">
+    37→    37→      <div className="flex items-center justify-between mb-6">
+    38→    38→        <div><h1 className="text-2xl font-bold text-navy-900">{state.user?.role === 'super_admin' ? 'Admin Dashboard' : 'Seller Dashboard'}</h1><p className="text-sm text-navy-500">{state.user?.role === 'super_admin' ? 'Manage the platform' : `Manage your shop${state.user?.name ? ` • ${state.user.name}` : ''}`}</p></div>
+    39→    39→        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">● Live</span>
+    40→    40→      </div>
+    41→    41→
+    42→    42→      <div className="flex gap-1 overflow-x-auto mb-6 bg-gray-100 p-1 rounded-xl">
+    43→    43→        {tabs.map((tab) => (
+    44→    44→          <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${activeTab === tab.id ? 'bg-white text-navy-900 shadow-sm' : 'text-navy-500 hover:text-navy-700'}`}>{tab.icon} {tab.label}</button>
+    45→    45→        ))}
+    46→    46→      </div>
+    47→    47→
+    48→    48→      {activeTab === 'dashboard' && <DashboardOverview />}
+    49→    49→      {activeTab === 'products' && <ProductsManagement />}
+    50→    50→      {activeTab === 'orders' && <OrdersManagement />}
+    51→    51→      {activeTab === 'banners' && <BannersManagement />}
+    52→    52→      {activeTab === 'customers' && <CustomersManagement />}
+    53→    53→      {activeTab === 'settings' && <StoreSettings />}
+    54→    54→    </div>
+    55→    55→  );
+    56→    56→}
+    57→    57→
+    58→    58→function EyeIcon() {
+    59→    59→  return (
+    60→    60→    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" /><circle cx="12" cy="12" r="3" /></svg>
+    61→    61→  );
+    62→    62→}
+    63→    63→
+    64→    64→function DashboardOverview() {
+    65→    65→  const { state } = useApp();
+    66→    66→  const [stats, setStats] = useState<AdminStats | null>(null);
+    67→    67→  const [loading, setLoading] = useState(true);
+    68→    68→
+    69→    69→  useEffect(() => {
+    70→    70→    fetch('/api/admin/stats')
+    71→    71→      .then((r) => (r.ok ? r.json() : null))
+    72→    72→      .then((data) => data && setStats(data.stats))
+    73→    73→      .finally(() => setLoading(false));
+    74→    74→  }, [state.products.length]);
+    75→    75→
+    76→    76→  const totalRevenue = stats?.totalRevenue ?? 0;
+    77→    77→  const orders = stats?.recentOrders ?? [];
+    78→    78→  const lowStockProducts = stats?.lowStock ?? [];
+    79→    79→  const totalCustomers = stats?.totalCustomers ?? 0;
+    80→    80→
+    81→    81→  const statCards = [
+    82→    82→    { label: 'Total Revenue', value: formatPrice(totalRevenue), icon: <TrendingUp size={20} />, color: 'bg-green-50 text-green-600', change: '+12.5%' },
+    83→    83→    { label: 'Total Orders', value: (stats?.totalOrders ?? 0).toString(), icon: <ShoppingBag size={20} />, color: 'bg-blue-50 text-blue-600', change: '+8.2%' },
+    84→    84→    { label: 'Customers', value: totalCustomers.toString(), icon: <Users size={20} />, color: 'bg-purple-50 text-purple-600', change: '+15.3%' },
+    85→    85→    { label: 'Products', value: (stats?.totalProducts ?? 0).toString(), icon: <Package size={20} />, color: 'bg-amber-50 text-amber-600', change: `${stats?.totalProducts ?? 0} active` },
+    86→    86→  ];
+    87→    87→
+    88→    88→  return (
+    89→    89→    <div className="space-y-6">
+    90→    90→      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    91→    91→        {statCards.map((stat, i) => (
+    92→    92→          <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 md:p-5">
+    93→    93→            <div className="flex items-center justify-between mb-3">
+    94→    94→              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${stat.color}`}>{stat.icon}</div>
+    95→    95→              <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{stat.change}</span>
+    96→    96→            </div>
+    97→    97→            <p className="text-2xl font-bold text-navy-900">{stat.value}</p>
+    98→    98→            <p className="text-sm text-navy-500">{stat.label}</p>
+    99→    99→          </div>
+   100→   100→        ))}
+   101→   101→      </div>
+   102→   102→
+   103→   103→      <div className="grid lg:grid-cols-2 gap-6">
+   104→   104→        <div className="bg-white border border-gray-200 rounded-xl p-5">
+   105→   105→          <h3 className="font-bold text-navy-900 mb-4">Revenue Overview</h3>
+   106→   106→          <div className="flex items-end gap-2 h-40">
+   107→   107→            {[65, 45, 78, 52, 89, 67, 92, 73, 85, 60, 95, 80].map((h, i) => (
+   108→   108→              <div key={i} className="flex-1 flex flex-col items-center gap-1">
+   109→   109→                <div className="w-full bg-primary-500 rounded-t-sm hover:bg-primary-600 transition" style={{ height: `${h}%` }} />
+   110→   110→                <span className="text-[9px] text-navy-400">{['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'][i]}</span>
+   111→   111→              </div>
+   112→   112→            ))}
+   113→   113→          </div>
+   114→   114→        </div>
+   115→   115→        <div className="bg-white border border-gray-200 rounded-xl p-5">
+   116→   116→          <h3 className="font-bold text-navy-900 mb-4">Recent Orders</h3>
+   117→   117→          <div className="space-y-3">
+   118→   118→            {orders.length === 0 && <p className="text-sm text-navy-400">No orders yet.</p>}
+   119→   119→            {orders.map((order) => (
+   120→   120→              <div key={order.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+   121→   121→                <div><p className="text-sm font-medium text-navy-900">{order.order_number}</p><p className="text-xs text-navy-500">{order.shipping_address?.fullName || 'Guest'}</p></div>
+   122→   122→                <div className="text-right"><p className="text-sm font-medium">{formatPrice(order.total)}</p><span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${order.status === 'delivered' ? 'bg-green-100 text-green-700' : order.status === 'shipped' ? 'bg-blue-100 text-blue-700' : order.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{order.status}</span></div>
+   123→   123→              </div>
+   124→   124→            ))}
+   125→   125→          </div>
+   126→   126→        </div>
+   127→   127→      </div>
+   128→   128→
+   129→   129→      {lowStockProducts.length > 0 && (
+   130→   130→        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
+   131→   131→          <div className="flex items-center gap-2 mb-3"><AlertTriangle size={18} className="text-amber-600" /><h3 className="font-bold text-amber-800">Low Stock Alert</h3></div>
+   132→   132→          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+   133→   133→            {lowStockProducts.map((p) => (
+   134→   134→              <div key={p.id} className="flex items-center gap-3 bg-white rounded-lg p-3">
+   135→   135→                {p.images?.[0]?.startsWith('http') ? <img src={p.images[0]} alt="" className="w-10 h-10 rounded object-cover" /> : <span className="text-2xl">📦</span>}
+   136→   136→                <div className="flex-1 min-w-0"><p className="text-sm font-medium text-navy-900 truncate">{p.name}</p><p className="text-xs text-amber-600 font-medium">{p.stock} units left</p></div>
+   137→   137→              </div>
+   138→   138→            ))}
+   139→   139→          </div>
+   140→   140→        </div>
+   141→   141→      )}
+   142→   142→      {loading && <p className="text-sm text-navy-400">Loading stats...</p>}
+   143→   143→    </div>
+   144→   144→  );
+   145→   145→}
+   146→   146→
+   147→   147→const emptyForm = { name: '', slug: '', price: '', compare_price: '', brand: '', sku: '', stock: '', description: '', image_url: '', category_id: '' };
+   148→   148→
+   149→   149→function ProductsManagement() {
+   150→   150→  const { state } = useApp();
+   151→   151→  const { saveProduct, deleteProduct } = useAdminMutations();
+   152→   152→  const [searchTerm, setSearchTerm] = useState('');
+   153→   153→  const [showAddForm, setShowAddForm] = useState(false);
+   154→   154→  const [editProduct, setEditProduct] = useState<Product | null>(null);
+   155→   155→  const [categories, setCategories] = useState<Category[]>([]);
+   156→   156→  const [formData, setFormData] = useState(emptyForm);
+   157→   157→  // Scoped server list: sellers get ONLY their own products (?manage=1).
+   158→   158→  const [products, setProducts] = useState<Product[]>([]);
+   159→   159→  const isSuper = state.user?.role === 'super_admin';
+   160→   160→
+   161→   161→  const loadProducts = () => {
+   162→   162→    fetch('/api/products?manage=1')
+   163→   163→      .then((r) => (r.ok ? r.json() : { products: [] }))
+   164→   164→      .then((d) => setProducts(d.products || []));
+   165→   165→  };
+   166→   166→
+   167→   167→  useEffect(() => {
+   168→   168→    fetch('/api/categories').then((r) => r.json()).then((data) => setCategories(data.categories || []));
+   169→   169→    loadProducts();
+   170→   170→  }, []);
+   171→   171→
+   172→   172→  const filtered = products.filter((p) => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+   173→   173→
+   174→   174→  const handleSave = async () => {
+   175→   175→    if (!formData.name || !formData.price) return;
+   176→   176→    const ok = await saveProduct(formData, editProduct);
+   177→   177→    if (ok) {
+   178→   178→      setShowAddForm(false);
+   179→   179→      setEditProduct(null);
+   180→   180→      setFormData(emptyForm);
+   181→   181→      loadProducts();
+   182→   182→    }
+   183→   183→  };
+   184→   184→
+   185→   185→  const handleDelete = async (productId: string) => {
+   186→   186→    if (confirm('Are you sure you want to delete this product?')) {
+   187→   187→      await deleteProduct(productId);
+   188→   188→      loadProducts();
+   189→   189→    }
+   190→   190→  };
+   191→   191→
+   192→   192→  const startEdit = (product: Product) => {
+   193→   193→    setEditProduct(product);
+   194→   194→    setFormData({
+   195→   195→      name: product.name,
+   196→   196→      slug: product.slug,
+   197→   197→      price: String(product.price),
+   198→   198→      compare_price: product.compare_price ? String(product.compare_price) : '',
+   199→   199→      brand: product.brand || '',
+   200→   200→      sku: product.sku || '',
+   201→   201→      stock: String(product.stock),
+   202→   202→      description: product.description || '',
+   203→   203→      image_url: product.images?.[0] || '',
+   204→   204→      category_id: product.category_id || '',
+   205→   205→    });
+   206→   206→    setShowAddForm(true);
+   207→   207→  };
+   208→   208→
+   209→   209→  return (
+   210→   210→    <div className="space-y-4">
+   211→   211→      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+   212→   212→        <div className="relative flex-1 max-w-md">
+   213→   213→          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-navy-400" />
+   214→   214→          <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search products..." className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+   215→   215→        </div>
+   216→   216→        <button onClick={() => { setShowAddForm(true); setEditProduct(null); setFormData(emptyForm); }} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"><Plus size={14} /> Add Product</button>
+   217→   217→      </div>
+   218→   218→
+   219→   219→      {showAddForm && (
+   220→   220→        <div className="bg-white border border-gray-200 rounded-xl p-6 animate-fade-in">
+   221→   221→          <h3 className="font-bold text-navy-900 mb-4">{editProduct ? 'Edit Product' : 'Add New Product'}</h3>
+   222→   222→          <div className="grid sm:grid-cols-2 gap-4">
+   223→   223→            <div><label className="block text-sm font-medium text-navy-700 mb-1">Name *</label><input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   224→   224→            <div><label className="block text-sm font-medium text-navy-700 mb-1">Slug</label><input type="text" value={formData.slug} onChange={(e) => setFormData({ ...formData, slug: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="auto-generated if empty" /></div>
+   225→   225→            <div><label className="block text-sm font-medium text-navy-700 mb-1">Price (₹) *</label><input type="number" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   226→   226→            <div><label className="block text-sm font-medium text-navy-700 mb-1">Compare Price (₹)</label><input type="number" value={formData.compare_price} onChange={(e) => setFormData({ ...formData, compare_price: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   227→   227→            <div><label className="block text-sm font-medium text-navy-700 mb-1">Brand</label><input type="text" value={formData.brand} onChange={(e) => setFormData({ ...formData, brand: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   228→   228→            <div><label className="block text-sm font-medium text-navy-700 mb-1">SKU</label><input type="text" value={formData.sku} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   229→   229→            <div><label className="block text-sm font-medium text-navy-700 mb-1">Stock</label><input type="number" value={formData.stock} onChange={(e) => setFormData({ ...formData, stock: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   230→   230→            <div><label className="block text-sm font-medium text-navy-700 mb-1">Category</label>
+   231→   231→              <select value={formData.category_id} onChange={(e) => setFormData({ ...formData, category_id: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+   232→   232→                <option value="">Select category</option>
+   233→   233→                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+   234→   234→              </select>
+   235→   235→            </div>
+   236→   236→            <div className="sm:col-span-2"><label className="block text-sm font-medium text-navy-700 mb-1">Image URL</label><input type="text" value={formData.image_url} onChange={(e) => setFormData({ ...formData, image_url: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="https://..." /></div>
+   237→   237→            <div className="sm:col-span-2"><label className="block text-sm font-medium text-navy-700 mb-1">Description</label><textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={3} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" /></div>
+   238→   238→          </div>
+   239→   239→          <div className="flex gap-3 mt-4">
+   240→   240→            <button onClick={handleSave} className="px-6 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700">{editProduct ? 'Update' : 'Create'} Product</button>
+   241→   241→            <button onClick={() => { setShowAddForm(false); setEditProduct(null); }} className="px-6 py-2 border border-gray-200 rounded-lg text-sm font-medium text-navy-700 hover:bg-gray-50">Cancel</button>
+   242→   242→          </div>
+   243→   243→        </div>
+   244→   244→      )}
+   245→   245→
+   246→   246→      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+   247→   247→        <div className="overflow-x-auto">
+   248→   248→          <table className="w-full text-sm">
+   249→   249→            <thead className="bg-gray-50">
+   250→   250→              <tr>
+   251→   251→                <th className="text-left px-4 py-3 font-medium text-navy-600">Product</th>
+   252→   252→                <th className="text-left px-4 py-3 font-medium text-navy-600">SKU</th>
+   253→   253→                <th className="text-right px-4 py-3 font-medium text-navy-600">Price</th>
+   254→   254→                <th className="text-right px-4 py-3 font-medium text-navy-600">Stock</th>
+   255→   255→                <th className="text-center px-4 py-3 font-medium text-navy-600">Actions</th>
+   256→   256→              </tr>
+   257→   257→            </thead>
+   258→   258→            <tbody>
+   259→   259→              {filtered.length === 0 && (
+   260→   260→                <tr><td colSpan={5} className="px-4 py-10 text-center text-sm text-navy-400">{searchTerm ? 'No products match your search.' : isSuper ? 'No products yet.' : 'No products yet — click “Add Product” to start selling.'}</td></tr>
+   261→   261→              )}
+   262→   262→              {filtered.map((p) => (
+   263→   263→                <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50">
+   264→   264→                  <td className="px-4 py-3">
+   265→   265→                    <div className="flex items-center gap-3">
+   266→   266→                      {p.images?.[0]?.startsWith('http') ? <img src={p.images[0]} alt="" className="w-10 h-10 rounded object-cover" /> : <span className="text-xl">📦</span>}
+   267→   267→                      <div><p className="font-medium text-navy-900 truncate max-w-[200px]">{p.name}</p><p className="text-xs text-navy-500">{p.brand}</p></div>
+   268→   268→                    </div>
+   269→   269→                  </td>
+   270→   270→                  <td className="px-4 py-3 text-navy-600 font-mono text-xs">{p.sku}</td>
+   271→   271→                  <td className="px-4 py-3 text-right font-medium text-navy-900">{formatPrice(p.price)}</td>
+   272→   272→                  <td className="px-4 py-3 text-right"><span className={`px-2 py-0.5 rounded-full text-xs ${p.stock < 20 ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>{p.stock}</span></td>
+   273→   273→                  <td className="px-4 py-3 text-center">
+   274→   274→                    <div className="flex items-center justify-center gap-1">
+   275→   275→                      <button onClick={() => startEdit(p)} aria-label="Edit product" className="p-1.5 hover:bg-gray-100 rounded text-navy-500 hover:text-amber-600"><Edit size={14} /></button>
+   276→   276→                      <button onClick={() => handleDelete(p.id)} aria-label="Delete product" className="p-1.5 hover:bg-gray-100 rounded text-navy-500 hover:text-red-600"><Trash2 size={14} /></button>
+   277→   277→                    </div>
+   278→   278→                  </td>
+   279→   279→                </tr>
+   280→   280→              ))}
+   281→   281→            </tbody>
+   282→   282→          </table>
+   283→   283→        </div>
+   284→   284→        <div className="px-4 py-3 border-t border-gray-100"><p className="text-sm text-navy-500">{isSuper ? `Showing ${filtered.length} of ${products.length} products` : `Showing ${filtered.length} of your products`}</p></div>
+   285→   285→      </div>
+   286→   286→    </div>
+   287→   287→  );
+   288→   288→}
+   289→   289→
+   290→   290→const STATUS_FLOW = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'] as const;
+   291→   291→
+   292→   292→function statusPillCls(status: string): string {
+   293→   293→  return status === 'delivered'
+   294→   294→    ? 'bg-green-100 text-green-700'
+   295→   295→    : status === 'shipped'
+   296→   296→      ? 'bg-blue-100 text-blue-700'
+   297→   297→      : status === 'cancelled'
+   298→   298→        ? 'bg-red-100 text-red-700'
+   299→   299→        : 'bg-amber-100 text-amber-700';
+   300→   300→}
+   301→   301→
+   302→   302→function OrdersManagement() {
+   303→   303→  const { state, dispatch } = useApp();
+   304→   304→  const [orders, setOrders] = useState(state.orders);
+   305→   305→  const [loading, setLoading] = useState(true);
+   306→   306→  const [savingId, setSavingId] = useState<string | null>(null);
+   307→   307→  const [filter, setFilter] = useState<string>('all');
+   308→   308→
+   309→   309→  const loadOrders = useCallback(() => {
+   310→   310→    return fetch('/api/orders?scope=all')
+   311→   311→      .then((r) => (r.ok ? r.json() : { orders: [] }))
+   312→   312→      .then((data) => setOrders(data.orders || []))
+   313→   313→      .finally(() => setLoading(false));
+   314→   314→  }, []);
+   315→   315→
+   316→   316→  useEffect(() => {
+   317→   317→    loadOrders();
+   318→   318→  }, [loadOrders]);
+   319→   319→
+   320→   320→  const patchOrder = async (orderNumber: string, body: Record<string, string>) => {
+   321→   321→    setSavingId(orderNumber);
+   322→   322→    try {
+   323→   323→      const res = await fetch(`/api/orders/${orderNumber}`, {
+   324→   324→        method: 'PATCH',
+   325→   325→        headers: { 'Content-Type': 'application/json' },
+   326→   326→        body: JSON.stringify(body),
+   327→   327→      });
+   328→   328→      const data = await res.json();
+   329→   329→      if (!res.ok) throw new Error(data.error || 'Update failed');
+   330→   330→      setOrders((list) => list.map((o) => (o.order_number === orderNumber ? data.order : o)));
+   331→   331→      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'success', message: `Order ${orderNumber} updated` } });
+   332→   332→    } catch (error) {
+   333→   333→      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'error', message: (error as Error).message } });
+   334→   334→    } finally {
+   335→   335→      setSavingId(null);
+   336→   336→    }
+   337→   337→  };
+   338→   338→
+   339→   339→  const visible = filter === 'all' ? orders : orders.filter((o) => o.status === filter);
+   340→   340→
+   341→   341→  return (
+   342→   342→    <div className="space-y-4">
+   343→   343→      {/* Status filter chips */}
+   344→   344→      <div className="flex gap-1.5 overflow-x-auto pb-1">
+   345→   345→        {['all', ...STATUS_FLOW].map((f) => (
+   346→   346→          <button
+   347→   347→            key={f}
+   348→   348→            onClick={() => setFilter(f)}
+   349→   349→            className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap capitalize transition ${filter === f ? 'bg-navy-900 text-white' : 'bg-gray-100 text-navy-600 hover:bg-gray-200'}`}
+   350→   350→          >
+   351→   351→            {f} {f !== 'all' && `(${orders.filter((o) => o.status === f).length})`}
+   352→   352→          </button>
+   353→   353→        ))}
+   354→   354→      </div>
+   355→   355→
+   356→   356→      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+   357→   357→        <div className="overflow-x-auto">
+   358→   358→          <table className="w-full text-sm">
+   359→   359→            <thead className="bg-gray-50">
+   360→   360→              <tr>
+   361→   361→                <th className="text-left px-4 py-3 font-medium text-navy-600">Order #</th>
+   362→   362→                <th className="text-left px-4 py-3 font-medium text-navy-600">Customer</th>
+   363→   363→                <th className="text-left px-4 py-3 font-medium text-navy-600">Date</th>
+   364→   364→                <th className="text-right px-4 py-3 font-medium text-navy-600">Total</th>
+   365→   365→                <th className="text-center px-4 py-3 font-medium text-navy-600">Payment</th>
+   366→   366→                <th className="text-center px-4 py-3 font-medium text-navy-600">Status</th>
+   367→   367→                <th className="text-center px-4 py-3 font-medium text-navy-600">Actions</th>
+   368→   368→              </tr>
+   369→   369→            </thead>
+   370→   370→            <tbody>
+   371→   371→              {visible.map((order) => (
+   372→   372→                <tr key={order.id} className="border-t border-gray-100 hover:bg-gray-50">
+   373→   373→                  <td className="px-4 py-3 font-mono text-xs font-medium text-navy-900">{order.order_number}</td>
+   374→   374→                  <td className="px-4 py-3 text-navy-700">
+   375→   375→                    <p>{order.shipping_address?.fullName || 'Guest'}</p>
+   376→   376→                    <p className="text-[11px] text-navy-400">{order.payment_method === 'cod' ? 'COD' : 'Prepaid'}</p>
+   377→   377→                  </td>
+   378→   378→                  <td className="px-4 py-3 text-navy-500 whitespace-nowrap">{new Date(order.created_at).toLocaleDateString()}</td>
+   379→   379→                  <td className="px-4 py-3 text-right font-medium text-navy-900">{formatPrice(order.total)}</td>
+   380→   380→                  <td className="px-4 py-3 text-center">
+   381→   381→                    {order.payment_method === 'cod' ? (
+   382→   382→                      order.payment_status === 'paid' ? (
+   383→   383→                        <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">collected</span>
+   384→   384→                      ) : (
+   385→   385→                        <button
+   386→   386→                          onClick={() => patchOrder(order.order_number, { payment_status: 'paid' })}
+   387→   387→                          disabled={savingId === order.order_number}
+   388→   388→                          className="text-xs px-2.5 py-1 rounded-full bg-green-600 text-white hover:bg-green-700 transition disabled:opacity-50"
+   389→   389→                        >
+   390→   390→                          Mark paid
+   391→   391→                        </button>
+   392→   392→                      )
+   393→   393→                    ) : (
+   394→   394→                      <span className={`text-xs px-2 py-1 rounded-full ${order.payment_status === 'paid' ? 'bg-green-100 text-green-700' : order.payment_status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{order.payment_status}</span>
+   395→   395→                    )}
+   396→   396→                  </td>
+   397→   397→                  <td className="px-4 py-3 text-center">
+   398→   398→                    <span className={`text-xs px-2 py-1 rounded-full ${statusPillCls(order.status)}`}>{order.status}</span>
+   399→   399→                  </td>
+   400→   400→                  <td className="px-4 py-3 text-center">
+   401→   401→                    <div className="flex items-center justify-center gap-2">
+   402→   402→                      <select
+   403→   403→                        value={order.status}
+   404→   404→                        disabled={savingId === order.order_number}
+   405→   405→                        onChange={(e) => patchOrder(order.order_number, { status: e.target.value })}
+   406→   406→                        className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
+   407→   407→                        aria-label={`Update status for ${order.order_number}`}
+   408→   408→                      >
+   409→   409→                        {STATUS_FLOW.map((s) => <option key={s} value={s}>{s}</option>)}
+   410→   410→                      </select>
+   411→   411→                      {savingId === order.order_number && <Loader2 size={13} className="animate-spin text-primary-600" />}
+   412→   412→                    </div>
+   413→   413→                  </td>
+   414→   414→                </tr>
+   415→   415→              ))}
+   416→   416→              {!loading && visible.length === 0 && (
+   417→   417→                <tr><td colSpan={7} className="px-4 py-8 text-center text-navy-400">No orders in this view</td></tr>
+   418→   418→              )}
+   419→   419→            </tbody>
+   420→   420→          </table>
+   421→   421→        </div>
+   422→   422→      </div>
+   423→   423→      <p className="text-xs text-navy-400">Cancelling an order returns reserved stock automatically; re-opening re-reserves it when available.</p>
+   424→   424→    </div>
+   425→   425→  );
+   426→   426→}
+   427→   427→
+   428→   428→function BannersManagement() {
+   429→   429→  const { state } = useApp();
+   430→   430→  const { addBanner, deleteBanner, toggleBanner } = useAdminMutations();
+   431→   431→  const [showAddForm, setShowAddForm] = useState(false);
+   432→   432→  const [formData, setFormData] = useState({ title: '', subtitle: '', cta_text: '', cta_link: '', image_url: '', background_color: 'from-indigo-600 to-purple-600' });
+   433→   433→
+   434→   434→  const handleAdd = async () => {
+   435→   435→    if (!formData.title) return;
+   436→   436→    const ok = await addBanner(formData);
+   437→   437→    if (ok) {
+   438→   438→      setShowAddForm(false);
+   439→   439→      setFormData({ title: '', subtitle: '', cta_text: '', cta_link: '', image_url: '', background_color: 'from-indigo-600 to-purple-600' });
+   440→   440→    }
+   441→   441→  };
+   442→   442→
+   443→   443→  const handleDelete = async (bannerId: string) => {
+   444→   444→    if (confirm('Delete this banner?')) {
+   445→   445→      await deleteBanner(bannerId);
+   446→   446→    }
+   447→   447→  };
+   448→   448→
+   449→   449→  return (
+   450→   450→    <div className="space-y-4">
+   451→   451→      <div className="flex justify-between items-center">
+   452→   452→        <h2 className="text-lg font-bold text-navy-900">Banners ({state.banners.length})</h2>
+   453→   453→        <button onClick={() => setShowAddForm(!showAddForm)} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"><Plus size={14} /> Add Banner</button>
+   454→   454→      </div>
+   455→   455→
+   456→   456→      {showAddForm && (
+   457→   457→        <div className="bg-white border border-gray-200 rounded-xl p-6 animate-fade-in">
+   458→   458→          <h3 className="font-bold text-navy-900 mb-4">Create Banner</h3>
+   459→   459→          <div className="grid sm:grid-cols-2 gap-4">
+   460→   460→            <div><label className="block text-sm font-medium text-navy-700 mb-1">Title *</label><input type="text" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   461→   461→            <div><label className="block text-sm font-medium text-navy-700 mb-1">Subtitle</label><input type="text" value={formData.subtitle} onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   462→   462→            <div><label className="block text-sm font-medium text-navy-700 mb-1">CTA Text</label><input type="text" value={formData.cta_text} onChange={(e) => setFormData({ ...formData, cta_text: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   463→   463→            <div><label className="block text-sm font-medium text-navy-700 mb-1">CTA Link</label><input type="text" value={formData.cta_link} onChange={(e) => setFormData({ ...formData, cta_link: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   464→   464→            <div className="sm:col-span-2"><label className="block text-sm font-medium text-navy-700 mb-1">Image URL</label><input type="text" value={formData.image_url} onChange={(e) => setFormData({ ...formData, image_url: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   465→   465→            <div><label className="block text-sm font-medium text-navy-700 mb-1">Background Gradient</label>
+   466→   466→              <select value={formData.background_color} onChange={(e) => setFormData({ ...formData, background_color: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+   467→   467→                <option value="from-indigo-600 to-purple-600">Indigo → Purple</option>
+   468→   468→                <option value="from-emerald-600 to-teal-600">Emerald → Teal</option>
+   469→   469→                <option value="from-amber-500 to-orange-600">Amber → Orange</option>
+   470→   470→                <option value="from-rose-500 to-pink-600">Rose → Pink</option>
+   471→   471→                <option value="from-navy-800 to-navy-900">Navy Dark</option>
+   472→   472→              </select>
+   473→   473→            </div>
+   474→   474→          </div>
+   475→   475→          <div className="flex gap-3 mt-4">
+   476→   476→            <button onClick={handleAdd} className="px-6 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700">Create Banner</button>
+   477→   477→            <button onClick={() => setShowAddForm(false)} className="px-6 py-2 border border-gray-200 rounded-lg text-sm font-medium text-navy-700 hover:bg-gray-50">Cancel</button>
+   478→   478→          </div>
+   479→   479→        </div>
+   480→   480→      )}
+   481→   481→
+   482→   482→      <div className="grid gap-4">
+   483→   483→        {state.banners.map((banner: Banner) => (
+   484→   484→          <div key={banner.id} className={`bg-gradient-to-r ${banner.background_color || 'from-indigo-600 to-purple-600'} rounded-xl p-5 text-white relative overflow-hidden`}>
+   485→   485→            {banner.image_url && <img src={banner.image_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20" />}
+   486→   486→            <div className="relative flex justify-between items-center">
+   487→   487→              <div>
+   488→   488→                <h3 className="text-xl font-bold">{banner.title}</h3>
+   489→   489→                <p className="opacity-90">{banner.subtitle}</p>
+   490→   490→                {banner.cta_text && <span className="inline-block mt-2 px-3 py-1 bg-white/20 rounded text-sm">{banner.cta_text}</span>}
+   491→   491→              </div>
+   492→   492→              <div className="flex gap-2">
+   493→   493→                <button onClick={() => toggleBanner(banner)} className={`px-3 py-1 rounded text-xs font-medium ${banner.is_active ? 'bg-green-500/30' : 'bg-red-500/30'}`}>{banner.is_active ? 'Active' : 'Inactive'}</button>
+   494→   494→                <button onClick={() => handleDelete(banner.id)} aria-label="Delete banner" className="p-1.5 bg-white/20 rounded hover:bg-white/30"><Trash2 size={14} /></button>
+   495→   495→              </div>
+   496→   496→            </div>
+   497→   497→          </div>
+   498→   498→        ))}
+   499→   499→      </div>
+   500→   500→    </div>
+   501→   501→  );
+   502→   502→}
+   503→   503→
+   504→   504→function CustomersManagement() {
+   505→   505→  const { state, dispatch } = useApp();
+   506→   506→  const [users, setUsers] = useState<AdminUserRow[]>([]);
+   507→   507→  const [loading, setLoading] = useState(true);
+   508→   508→  const [savingId, setSavingId] = useState<string | null>(null);
+   509→   509→  const isSuperAdmin = state.user?.role === 'super_admin';
+   510→   510→
+   511→   511→  const loadUsers = useCallback(() => {
+   512→   512→    return fetch('/api/admin/users')
+   513→   513→      .then((r) => (r.ok ? r.json() : { users: [] }))
+   514→   514→      .then((data) => setUsers(data.users || []))
+   515→   515→      .finally(() => setLoading(false));
+   516→   516→  }, []);
+   517→   517→
+   518→   518→  useEffect(() => {
+   519→   519→    loadUsers();
+   520→   520→  }, [loadUsers]);
+   521→   521→
+   522→   522→  const patchUser = async (id: string, body: Record<string, string | boolean>, okMessage: string) => {
+   523→   523→    setSavingId(id);
+   524→   524→    try {
+   525→   525→      const res = await fetch(`/api/admin/users/${id}`, {
+   526→   526→        method: 'PATCH',
+   527→   527→        headers: { 'Content-Type': 'application/json' },
+   528→   528→        body: JSON.stringify(body),
+   529→   529→      });
+   530→   530→      const data = await res.json();
+   531→   531→      if (!res.ok) throw new Error(data.error || 'Update failed');
+   532→   532→      setUsers((list) => list.map((u) => (u.id === id ? data.user : u)));
+   533→   533→      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'success', message: okMessage } });
+   534→   534→    } catch (error) {
+   535→   535→      dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'error', message: (error as Error).message } });
+   536→   536→    } finally {
+   537→   537→      setSavingId(null);
+   538→   538→    }
+   539→   539→  };
+   540→   540→
+   541→   541→  return (
+   542→   542→    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+   543→   543→      <div className="overflow-x-auto">
+   544→   544→        <table className="w-full text-sm">
+   545→   545→          <thead className="bg-gray-50">
+   546→   546→            <tr>
+   547→   547→              <th className="text-left px-4 py-3 font-medium text-navy-600">Customer</th>
+   548→   548→              <th className="text-left px-4 py-3 font-medium text-navy-600">Email</th>
+   549→   549→              <th className="text-center px-4 py-3 font-medium text-navy-600">Role</th>
+   550→   550→              <th className="text-right px-4 py-3 font-medium text-navy-600">Orders</th>
+   551→   551→              <th className="text-center px-4 py-3 font-medium text-navy-600">Status</th>
+   552→   552→              <th className="text-center px-4 py-3 font-medium text-navy-600">Actions</th>
+   553→   553→            </tr>
+   554→   554→          </thead>
+   555→   555→          <tbody>
+   556→   556→            {users.map((u) => {
+   557→   557→              const self = u.id === state.user?.id;
+   558→   558→              const manageable = u.role === 'customer' || isSuperAdmin;
+   559→   559→              return (
+   560→   560→                <tr key={u.id} className="border-t border-gray-100 hover:bg-gray-50">
+   561→   561→                  <td className="px-4 py-3"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center text-xs font-medium text-primary-700">{u.name?.split(' ').map((n) => n[0]).join('')}</div><span className="font-medium text-navy-900">{u.name}{self && <span className="text-[10px] text-navy-400 ml-1">(you)</span>}</span></div></td>
+   562→   562→                  <td className="px-4 py-3 text-navy-600">{u.email}</td>
+   563→   563→                  <td className="px-4 py-3 text-center">
+   564→   564→                    {isSuperAdmin && !self ? (
+   565→   565→                      <select
+   566→   566→                        value={u.role}
+   567→   567→                        disabled={savingId === u.id}
+   568→   568→                        onChange={(e) => patchUser(u.id, { role: e.target.value }, `${u.name} is now ${e.target.value.replace('_', ' ')}`)}
+   569→   569→                        className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
+   570→   570→                        aria-label={`Change role for ${u.email}`}
+   571→   571→                      >
+   572→   572→                        <option value="customer">customer</option>
+   573→   573→                        <option value="admin">admin</option>
+   574→   574→                        <option value="super_admin">super_admin</option>
+   575→   575→                      </select>
+   576→   576→                    ) : (
+   577→   577→                      <span className={`text-xs px-2 py-1 rounded-full ${u.role === 'super_admin' ? 'bg-purple-100 text-purple-700' : u.role === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>{u.role}</span>
+   578→   578→                    )}
+   579→   579→                  </td>
+   580→   580→                  <td className="px-4 py-3 text-right text-navy-700">{u.order_count}</td>
+   581→   581→                  <td className="px-4 py-3 text-center"><span className={`text-xs px-2 py-1 rounded-full ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{u.is_active ? 'Active' : 'Disabled'}</span></td>
+   582→   582→                  <td className="px-4 py-3 text-center">
+   583→   583→                    {self ? (
+   584→   584→                      <span className="text-[11px] text-navy-300">—</span>
+   585→   585→                    ) : manageable ? (
+   586→   586→                      u.is_active ? (
+   587→   587→                        <button
+   588→   588→                          onClick={() => patchUser(u.id, { is_active: false }, `${u.name} can no longer sign in`)}
+   589→   589→                          disabled={savingId === u.id}
+   590→   590→                          className="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+   591→   591→                        >
+   592→   592→                          {savingId === u.id ? <Loader2 size={12} className="animate-spin" /> : <Ban size={12} />} Disable
+   593→   593→                        </button>
+   594→   594→                      ) : (
+   595→   595→                        <button
+   596→   596→                          onClick={() => patchUser(u.id, { is_active: true }, `${u.name} re-activated`)}
+   597→   597→                          disabled={savingId === u.id}
+   598→   598→                          className="inline-flex items-center gap-1 text-xs font-medium text-green-700 hover:text-green-800 disabled:opacity-50"
+   599→   599→                        >
+   600→   600→                          {savingId === u.id ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />} Enable
+   601→   601→                        </button>
+   602→   602→                      )
+   603→   603→                    ) : (
+   604→   604→                      <span className="text-[11px] text-navy-300">super admin only</span>
+   605→   605→                    )}
+   606→   606→                  </td>
+   607→   607→                </tr>
+   608→   608→              );
+   609→   609→            })}
+   610→   610→            {!loading && users.length === 0 && (
+   611→   611→              <tr><td colSpan={6} className="px-4 py-8 text-center text-navy-400">No customers found</td></tr>
+   612→   612→            )}
+   613→   613→          </tbody>
+   614→   614→        </table>
+   615→   615→      </div>
+   616→   616→    </div>
+   617→   617→  );
+   618→   618→}
+   619→   619→
+   620→   620→function StoreSettings() {
+   621→   621→  const { state } = useApp();
+   622→   622→  return (
+   623→   623→    <div className="grid md:grid-cols-2 gap-6">
+   624→   624→      <div className="bg-white border border-gray-200 rounded-xl p-5">
+   625→   625→        <h3 className="font-bold text-navy-900 mb-4">Store Information</h3>
+   626→   626→        <div className="space-y-4">
+   627→   627→          <div><label className="block text-sm font-medium text-navy-700 mb-1">Store Name</label><input type="text" defaultValue="ShopMitra" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   628→   628→          <div><label className="block text-sm font-medium text-navy-700 mb-1">Contact Email</label><input type="email" defaultValue="support@shopmitra.in" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   629→   629→          <div><label className="block text-sm font-medium text-navy-700 mb-1">Currency</label><select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"><option>INR (₹)</option><option>USD ($)</option></select></div>
+   630→   630→          <button className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700">Save Changes</button>
+   631→   631→        </div>
+   632→   632→      </div>
+   633→   633→      <div className="bg-white border border-gray-200 rounded-xl p-5">
+   634→   634→        <h3 className="font-bold text-navy-900 mb-4">Payments</h3>
+   635→   635→        <div className="space-y-4">
+   636→   636→          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+   637→   637→            <div>
+   638→   638→              <p className="text-sm font-medium text-navy-900">Online Payments</p>
+   639→   639→              <p className="text-xs text-navy-500">UPI · Cards · Net Banking · Wallets</p>
+   640→   640→            </div>
+   641→   641→            <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded-full">Enabled</span>
+   642→   642→          </div>
+   643→   643→          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+   644→   644→            <div>
+   645→   645→              <p className="text-sm font-medium text-navy-900">Cash on Delivery</p>
+   646→   646→              <p className="text-xs text-navy-500">Collect payment when the order is delivered</p>
+   647→   647→            </div>
+   648→   648→            <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded-full">Enabled</span>
+   649→   649→          </div>
+   650→   650→          <p className="text-xs text-navy-400">Gateway credentials live in the server environment — they are never exposed to the storefront or this dashboard.</p>
+   651→   651→        </div>
+   652→   652→      </div>
+   653→   653→      <div className="bg-white border border-gray-200 rounded-xl p-5">
+   654→   654→        <h3 className="font-bold text-navy-900 mb-4">Database Status</h3>
+   655→   655→        <div className="space-y-2 text-sm">
+   656→   656→          <div className="flex justify-between"><span className="text-navy-600">SQLite + Prisma</span><span className="text-green-600 font-medium">Connected</span></div>
+   657→   657→          <div className="flex justify-between"><span className="text-navy-600">Products</span><span className="font-medium">{state.products.length}</span></div>
+   658→   658→          <div className="flex justify-between"><span className="text-navy-600">Orders</span><span className="font-medium">{state.orders.length}</span></div>
+   659→   659→          <div className="flex justify-between"><span className="text-navy-600">Banners</span><span className="font-medium">{state.banners.length}</span></div>
+   660→   660→        </div>
+   661→   661→      </div>
+   662→   662→      <div className="bg-white border border-gray-200 rounded-xl p-5">
+   663→   663→        <h3 className="font-bold text-navy-900 mb-4">Shipping & Tax</h3>
+   664→   664→        <div className="space-y-4">
+   665→   665→          <div><label className="block text-sm font-medium text-navy-700 mb-1">Free Shipping Threshold (₹)</label><input type="number" defaultValue={999} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   666→   666→          <div><label className="block text-sm font-medium text-navy-700 mb-1">Default Shipping Rate (₹)</label><input type="number" defaultValue={99} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   667→   667→          <div><label className="block text-sm font-medium text-navy-700 mb-1">GST Rate (%)</label><input type="number" defaultValue={18} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
+   668→   668→          <button className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700">Save Settings</button>
+   669→   669→        </div>
+   670→   670→      </div>
+   671→   671→    </div>
+   672→   672→  );
+   673→   673→}
+   674→   674→

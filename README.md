@@ -45,6 +45,39 @@ There are **no demo accounts or preset passwords** — every user creates their 
 
 Coupons: `SAVE10` (10%), `FIRST20` (20% first order), `SHOP15` (15%).
 
+## 🛠️ Developer guide — managing accounts & content
+
+Everything lives in the **Admin Dashboard** (`/admin`). The first super admin is your own registered account promoted via DB (see below); after that everything is point-and-click.
+
+### Roles
+
+| Role         | Powers                                                                 |
+| ------------ | ---------------------------------------------------------------------- |
+| `customer`   | Shop, track orders, manage addresses                                    |
+| `admin`      | **Merchant/seller** — own shop, own products, own orders (seller dashboard) |
+| `super_admin`| Everything above **plus**: see all accounts, change roles, block/unblock anyone, reset passwords |
+
+**Make yourself the first super admin** (one-time, from your terminal):
+
+```bash
+npm run db:studio        # open Prisma Studio → User table → set role = super_admin
+```
+
+### Where each thing lives
+
+| I want to…                       | Go to                                                              |
+| -------------------------------- | ------------------------------------------------------------------ |
+| See **how many accounts** exist (total / merchants / customers / blocked) | `/admin` → **Dashboard** → "Accounts" strip, or **Customers** tab chips |
+| See **every account** (name, email, role, shop, orders, joined date) | `/admin` → **Customers** tab (search by name / email / shop, filter by role or status) |
+| **Block / disable** an account (user can no longer sign in) | Customers tab → **Block** on that row (reversible with **Unblock**) |
+| Make someone a **merchant/admin** or demote them | Customers tab → role dropdown on that row (super admin only) |
+| **Change banners** (edit title, subtitle, CTA, image, colors) | `/admin` → **Banners** tab → ✏️ **Edit** on a banner → Update (add/delete/toggle too) |
+| See or set someone's **password** | Customers tab → **Reset password** → type or **Generate** a new one |
+
+### About passwords (read this once)
+
+Passwords are stored as **bcrypt hashes — they can never be viewed by anyone**, not even the super admin or the developer. That is deliberate: if the database ever leaks, every user's real password stays safe. The admin panel therefore has **"Reset password"** instead of "view password": pick the user, click **Reset password**, type or generate a new password, and share it with the user out-of-band. From that moment you effectively control the account.
+
 ## 📜 Scripts
 
 | Script             | What it does                                                        |

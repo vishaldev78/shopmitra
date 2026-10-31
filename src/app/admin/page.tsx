@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { BarChart3, Package, Users, ShoppingBag, TrendingUp, AlertTriangle, Edit, Trash2, Plus, Search, Image as ImageIcon, ShieldAlert, Loader2, ShieldCheck, Ban } from 'lucide-react';
+import { BarChart3, Package, Users, ShoppingBag, TrendingUp, AlertTriangle, Edit, Trash2, Plus, Search, Image as ImageIcon, ShieldAlert, Loader2, ShieldCheck, Ban, KeyRound, Store, UserCircle } from 'lucide-react';
 import { useApp, useAdminMutations } from '@/store/AppContext';
 import { formatPrice, isAdminRole } from '@/lib/utils';
 import type { AdminStats, AdminUserRow, Banner, Product, Category } from '@/lib/types';
@@ -99,6 +99,27 @@ function DashboardOverview() {
           </div>
         ))}
       </div>
+
+      {/* Account breakdown — super admin only */}
+      {stats?.accounts && (
+        <div className="bg-white border border-gray-200 rounded-xl p-4 md:p-5">
+          <h3 className="font-bold text-navy-900 mb-3">Accounts</h3>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { label: 'Total accounts', value: stats.accounts.total, icon: <UserCircle size={16} />, cls: 'bg-navy-50 text-navy-700' },
+              { label: 'Merchants (sellers)', value: stats.accounts.merchants, icon: <Store size={16} />, cls: 'bg-blue-50 text-blue-700' },
+              { label: 'Customers', value: stats.accounts.customers, icon: <Users size={16} />, cls: 'bg-purple-50 text-purple-700' },
+              { label: 'Blocked', value: stats.accounts.blocked, icon: <Ban size={16} />, cls: 'bg-red-50 text-red-700' },
+            ].map((a) => (
+              <div key={a.label} className="flex items-center gap-3 bg-gray-50 rounded-lg p-3">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${a.cls}`}>{a.icon}</div>
+                <div><p className="text-lg font-bold text-navy-900 leading-none">{a.value}</p><p className="text-xs text-navy-500 mt-0.5">{a.label}</p></div>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-navy-400 mt-3">Manage every account in the Customers tab — change roles, block/unblock, reset passwords.</p>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="bg-white border border-gray-200 rounded-xl p-5">
@@ -425,19 +446,43 @@ function OrdersManagement() {
   );
 }
 
+const emptyBannerForm = { title: '', subtitle: '', cta_text: '', cta_link: '', image_url: '', background_color: 'from-indigo-600 to-purple-600' };
+
 function BannersManagement() {
   const { state } = useApp();
-  const { addBanner, deleteBanner, toggleBanner } = useAdminMutations();
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [formData, setFormData] = useState({ title: '', subtitle: '', cta_text: '', cta_link: '', image_url: '', background_color: 'from-indigo-600 to-purple-600' });
+  const { addBanner, updateBanner, deleteBanner, toggleBanner } = useAdminMutations();
+  const [showForm, setShowForm] = useState(false);
+  const [editBanner, setEditBanner] = useState<Banner | null>(null);
+  const [formData, setFormData] = useState(emptyBannerForm);
 
-  const handleAdd = async () => {
-    if (!formData.title) return;
-    const ok = await addBanner(formData);
-    if (ok) {
-      setShowAddForm(false);
-      setFormData({ title: '', subtitle: '', cta_text: '', cta_link: '', image_url: '', background_color: 'from-indigo-600 to-purple-600' });
-    }
+  const openCreate = () => {
+    setEditBanner(null);
+    setFormData(emptyBannerForm);
+    setShowForm(true);
+  };
+
+  const startEdit = (banner: Banner) => {
+    setEditBanner(banner);
+    setFormData({
+      title: banner.title,
+      subtitle: banner.subtitle || '',
+      cta_text: banner.cta_text || '',
+      cta_link: banner.cta_link || '',
+      image_url: banner.image_url || '',
+      background_color: banner.background_color || 'from-indigo-600 to-purple-600',
+    });
+    setShowForm(true);
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    setEditBanner(null);
+  };
+
+  const handleSave = async () => {
+    if (!formData.title.trim()) return;
+    const ok = editBanner ? await updateBanner(editBanner.id, formData) : await addBanner(formData);
+    if (ok) closeForm();
   };
 
   const handleDelete = async (bannerId: string) => {
@@ -450,12 +495,12 @@ function BannersManagement() {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-bold text-navy-900">Banners ({state.banners.length})</h2>
-        <button onClick={() => setShowAddForm(!showAddForm)} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"><Plus size={14} /> Add Banner</button>
+        <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"><Plus size={14} /> Add Banner</button>
       </div>
 
-      {showAddForm && (
+      {showForm && (
         <div className="bg-white border border-gray-200 rounded-xl p-6 animate-fade-in">
-          <h3 className="font-bold text-navy-900 mb-4">Create Banner</h3>
+          <h3 className="font-bold text-navy-900 mb-4">{editBanner ? 'Edit Banner' : 'Create Banner'}</h3>
           <div className="grid sm:grid-cols-2 gap-4">
             <div><label className="block text-sm font-medium text-navy-700 mb-1">Title *</label><input type="text" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
             <div><label className="block text-sm font-medium text-navy-700 mb-1">Subtitle</label><input type="text" value={formData.subtitle} onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" /></div>
@@ -473,8 +518,8 @@ function BannersManagement() {
             </div>
           </div>
           <div className="flex gap-3 mt-4">
-            <button onClick={handleAdd} className="px-6 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700">Create Banner</button>
-            <button onClick={() => setShowAddForm(false)} className="px-6 py-2 border border-gray-200 rounded-lg text-sm font-medium text-navy-700 hover:bg-gray-50">Cancel</button>
+            <button onClick={handleSave} className="px-6 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700">{editBanner ? 'Update Banner' : 'Create Banner'}</button>
+            <button onClick={closeForm} className="px-6 py-2 border border-gray-200 rounded-lg text-sm font-medium text-navy-700 hover:bg-gray-50">Cancel</button>
           </div>
         </div>
       )}
@@ -491,6 +536,7 @@ function BannersManagement() {
               </div>
               <div className="flex gap-2">
                 <button onClick={() => toggleBanner(banner)} className={`px-3 py-1 rounded text-xs font-medium ${banner.is_active ? 'bg-green-500/30' : 'bg-red-500/30'}`}>{banner.is_active ? 'Active' : 'Inactive'}</button>
+                <button onClick={() => startEdit(banner)} aria-label="Edit banner" className="p-1.5 bg-white/20 rounded hover:bg-white/30"><Edit size={14} /></button>
                 <button onClick={() => handleDelete(banner.id)} aria-label="Delete banner" className="p-1.5 bg-white/20 rounded hover:bg-white/30"><Trash2 size={14} /></button>
               </div>
             </div>
@@ -506,6 +552,11 @@ function CustomersManagement() {
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'merchants' | 'customers'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'disabled'>('all');
+  const [resetTarget, setResetTarget] = useState<AdminUserRow | null>(null);
+  const [newPassword, setNewPassword] = useState('');
   const isSuperAdmin = state.user?.role === 'super_admin';
 
   const loadUsers = useCallback(() => {
@@ -538,81 +589,234 @@ function CustomersManagement() {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!resetTarget || newPassword.length < 6) return;
+    await patchUser(resetTarget.id, { password: newPassword }, `Password updated for ${resetTarget.name} — share it with them securely`);
+    setResetTarget(null);
+    setNewPassword('');
+  };
+
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$%&';
+    const arr = new Uint32Array(12);
+    crypto.getRandomValues(arr);
+    setNewPassword(Array.from(arr, (n) => chars[n % chars.length]).join(''));
+  };
+
+  // Totals across every account (computed from the full list, not the filtered view)
+  const totals = {
+    all: users.length,
+    merchants: users.filter((u) => u.role === 'admin' || u.role === 'super_admin').length,
+    customers: users.filter((u) => u.role === 'customer').length,
+    blocked: users.filter((u) => !u.is_active).length,
+  };
+
+  const filtered = users.filter((u) => {
+    const q = searchTerm.trim().toLowerCase();
+    if (q && !u.name.toLowerCase().includes(q) && !u.email.toLowerCase().includes(q) && !(u.shop_name || '').toLowerCase().includes(q)) return false;
+    if (roleFilter === 'merchants' && u.role !== 'admin' && u.role !== 'super_admin') return false;
+    if (roleFilter === 'customers' && u.role !== 'customer') return false;
+    if (statusFilter === 'active' && !u.is_active) return false;
+    if (statusFilter === 'disabled' && u.is_active) return false;
+    return true;
+  });
+
+  const chips: { id: string; label: string; count: number; active: boolean; onClick: () => void }[] = [
+    { id: 'all', label: 'All accounts', count: totals.all, active: roleFilter === 'all' && statusFilter === 'all', onClick: () => { setRoleFilter('all'); setStatusFilter('all'); } },
+    { id: 'merchants', label: 'Merchants', count: totals.merchants, active: roleFilter === 'merchants', onClick: () => { setRoleFilter('merchants'); setStatusFilter('all'); } },
+    { id: 'customers', label: 'Customers', count: totals.customers, active: roleFilter === 'customers', onClick: () => { setRoleFilter('customers'); setStatusFilter('all'); } },
+    { id: 'blocked', label: 'Blocked', count: totals.blocked, active: statusFilter === 'disabled', onClick: () => { setRoleFilter('all'); setStatusFilter('disabled'); } },
+  ];
+
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="text-left px-4 py-3 font-medium text-navy-600">Customer</th>
-              <th className="text-left px-4 py-3 font-medium text-navy-600">Email</th>
-              <th className="text-center px-4 py-3 font-medium text-navy-600">Role</th>
-              <th className="text-right px-4 py-3 font-medium text-navy-600">Orders</th>
-              <th className="text-center px-4 py-3 font-medium text-navy-600">Status</th>
-              <th className="text-center px-4 py-3 font-medium text-navy-600">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((u) => {
-              const self = u.id === state.user?.id;
-              const manageable = u.role === 'customer' || isSuperAdmin;
-              return (
-                <tr key={u.id} className="border-t border-gray-100 hover:bg-gray-50">
-                  <td className="px-4 py-3"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center text-xs font-medium text-primary-700">{u.name?.split(' ').map((n) => n[0]).join('')}</div><span className="font-medium text-navy-900">{u.name}{self && <span className="text-[10px] text-navy-400 ml-1">(you)</span>}</span></div></td>
-                  <td className="px-4 py-3 text-navy-600">{u.email}</td>
-                  <td className="px-4 py-3 text-center">
-                    {isSuperAdmin && !self ? (
-                      <select
-                        value={u.role}
-                        disabled={savingId === u.id}
-                        onChange={(e) => patchUser(u.id, { role: e.target.value }, `${u.name} is now ${e.target.value.replace('_', ' ')}`)}
-                        className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
-                        aria-label={`Change role for ${u.email}`}
-                      >
-                        <option value="customer">customer</option>
-                        <option value="admin">admin</option>
-                        <option value="super_admin">super_admin</option>
-                      </select>
-                    ) : (
-                      <span className={`text-xs px-2 py-1 rounded-full ${u.role === 'super_admin' ? 'bg-purple-100 text-purple-700' : u.role === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>{u.role}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right text-navy-700">{u.order_count}</td>
-                  <td className="px-4 py-3 text-center"><span className={`text-xs px-2 py-1 rounded-full ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{u.is_active ? 'Active' : 'Disabled'}</span></td>
-                  <td className="px-4 py-3 text-center">
-                    {self ? (
-                      <span className="text-[11px] text-navy-300">—</span>
-                    ) : manageable ? (
-                      u.is_active ? (
-                        <button
-                          onClick={() => patchUser(u.id, { is_active: false }, `${u.name} can no longer sign in`)}
-                          disabled={savingId === u.id}
-                          className="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
-                        >
-                          {savingId === u.id ? <Loader2 size={12} className="animate-spin" /> : <Ban size={12} />} Disable
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => patchUser(u.id, { is_active: true }, `${u.name} re-activated`)}
-                          disabled={savingId === u.id}
-                          className="inline-flex items-center gap-1 text-xs font-medium text-green-700 hover:text-green-800 disabled:opacity-50"
-                        >
-                          {savingId === u.id ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />} Enable
-                        </button>
-                      )
-                    ) : (
-                      <span className="text-[11px] text-navy-300">super admin only</span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-            {!loading && users.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-navy-400">No customers found</td></tr>
-            )}
-          </tbody>
-        </table>
+    <div className="space-y-4">
+      {/* Account totals */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {chips.map((c) => (
+          <button
+            key={c.id}
+            onClick={c.onClick}
+            className={`bg-white border rounded-xl p-4 text-left transition ${c.active ? 'border-primary-500 ring-1 ring-primary-500' : 'border-gray-200 hover:border-gray-300'}`}
+          >
+            <p className="text-2xl font-bold text-navy-900 leading-none">{c.count}</p>
+            <p className="text-sm text-navy-500 mt-1">{c.label}</p>
+          </button>
+        ))}
       </div>
+
+      {/* Search + filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-navy-400" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search by name, email or shop..."
+            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        </div>
+        <select
+          value={roleFilter}
+          onChange={(e) => setRoleFilter(e.target.value as typeof roleFilter)}
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+          aria-label="Filter by role"
+        >
+          <option value="all">All roles</option>
+          <option value="merchants">Merchants / admins</option>
+          <option value="customers">Customers</option>
+        </select>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+          aria-label="Filter by status"
+        >
+          <option value="all">All statuses</option>
+          <option value="active">Active only</option>
+          <option value="disabled">Blocked only</option>
+        </select>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="text-left px-4 py-3 font-medium text-navy-600">Account</th>
+                <th className="text-left px-4 py-3 font-medium text-navy-600">Email</th>
+                <th className="text-left px-4 py-3 font-medium text-navy-600">Role</th>
+                <th className="text-right px-4 py-3 font-medium text-navy-600">Orders</th>
+                <th className="text-left px-4 py-3 font-medium text-navy-600">Joined</th>
+                <th className="text-center px-4 py-3 font-medium text-navy-600">Status</th>
+                <th className="text-center px-4 py-3 font-medium text-navy-600">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && (
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-navy-400">Loading accounts...</td></tr>
+              )}
+              {filtered.map((u) => {
+                const self = u.id === state.user?.id;
+                const manageable = u.role === 'customer' || isSuperAdmin;
+                return (
+                  <tr key={u.id} className="border-t border-gray-100 hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center text-xs font-medium text-primary-700">{u.name?.split(' ').map((n) => n[0]).join('')}</div>
+                        <span className="font-medium text-navy-900">{u.name}{self && <span className="text-[10px] text-navy-400 ml-1">(you)</span>}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-navy-600">{u.email}</td>
+                    <td className="px-4 py-3">
+                      {isSuperAdmin && !self ? (
+                        <select
+                          value={u.role}
+                          disabled={savingId === u.id}
+                          onChange={(e) => patchUser(u.id, { role: e.target.value }, `${u.name} is now ${e.target.value.replace('_', ' ')}`)}
+                          className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
+                          aria-label={`Change role for ${u.email}`}
+                        >
+                          <option value="customer">customer</option>
+                          <option value="admin">admin (seller)</option>
+                          <option value="super_admin">super_admin</option>
+                        </select>
+                      ) : (
+                        <div>
+                          <span className={`text-xs px-2 py-1 rounded-full ${u.role === 'super_admin' ? 'bg-purple-100 text-purple-700' : u.role === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>{u.role === 'admin' ? 'admin (seller)' : u.role}</span>
+                          {u.role === 'admin' && u.shop_name && <p className="text-[11px] text-navy-400 mt-0.5 flex items-center gap-1"><Store size={10} /> {u.shop_name}</p>}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right text-navy-700">{u.order_count}</td>
+                    <td className="px-4 py-3 text-navy-500 whitespace-nowrap">{new Date(u.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                    <td className="px-4 py-3 text-center"><span className={`text-xs px-2 py-1 rounded-full ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{u.is_active ? 'Active' : 'Blocked'}</span></td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-3">
+                        {isSuperAdmin && (
+                          <button
+                            onClick={() => { setResetTarget(u); setNewPassword(''); }}
+                            className="inline-flex items-center gap-1 text-xs font-medium text-navy-600 hover:text-primary-700"
+                            title="Set a new password for this account"
+                          >
+                            <KeyRound size={12} /> Reset password
+                          </button>
+                        )}
+                        {self ? (
+                          <span className="text-[11px] text-navy-300">—</span>
+                        ) : manageable ? (
+                          u.is_active ? (
+                            <button
+                              onClick={() => patchUser(u.id, { is_active: false }, `${u.name} blocked — sign-in disabled`)}
+                              disabled={savingId === u.id}
+                              className="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+                            >
+                              {savingId === u.id ? <Loader2 size={12} className="animate-spin" /> : <Ban size={12} />} Block
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => patchUser(u.id, { is_active: true }, `${u.name} unblocked`)}
+                              disabled={savingId === u.id}
+                              className="inline-flex items-center gap-1 text-xs font-medium text-green-700 hover:text-green-800 disabled:opacity-50"
+                            >
+                              {savingId === u.id ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />} Unblock
+                            </button>
+                          )
+                        ) : (
+                          <span className="text-[11px] text-navy-300">super admin only</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {!loading && filtered.length === 0 && (
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-navy-400">{users.length === 0 ? 'No accounts yet' : 'No accounts match your search'}</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="px-4 py-3 border-t border-gray-100">
+          <p className="text-xs text-navy-400">Blocked accounts cannot sign in. Passwords are stored hashed and can never be viewed — use “Reset password” to set a new one you can share.</p>
+        </div>
+      </div>
+
+      {/* Reset password modal */}
+      {resetTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setResetTarget(null)}>
+          <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-primary-50 rounded-lg flex items-center justify-center text-primary-600"><KeyRound size={18} /></div>
+              <div>
+                <h3 className="font-bold text-navy-900">Reset password</h3>
+                <p className="text-xs text-navy-500">{resetTarget.name} · {resetTarget.email}</p>
+              </div>
+            </div>
+            <label className="block text-sm font-medium text-navy-700 mb-1">New password</label>
+            <div className="flex gap-2 mb-1">
+              <input
+                type="text"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Minimum 6 characters"
+                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+              <button onClick={generatePassword} className="px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-navy-700 hover:bg-gray-50 whitespace-nowrap">Generate</button>
+            </div>
+            <p className="text-xs text-navy-400 mb-4">Passwords are stored hashed — nobody (not even super admins) can view the old one. Setting a new password here lets you share it with the user.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={handleResetPassword}
+                disabled={newPassword.length < 6 || savingId === resetTarget.id}
+                className="px-5 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
+              >
+                Set password
+              </button>
+              <button onClick={() => setResetTarget(null)} className="px-5 py-2 border border-gray-200 rounded-lg text-sm font-medium text-navy-700 hover:bg-gray-50">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

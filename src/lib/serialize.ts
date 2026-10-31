@@ -88,6 +88,7 @@ export function serializeUserRow(u: AnyRecord & { _count?: { orders?: number } }
     name: u.name as string,
     email: u.email as string,
     role: u.role as string,
+    shop_name: (u.shopName as string) ?? null,
     is_active: Boolean(u.isActive),
     created_at: (u.createdAt as Date).toISOString(),
     order_count: Number(u._count?.orders ?? 0),

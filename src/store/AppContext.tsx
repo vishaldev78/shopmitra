@@ -365,6 +365,30 @@ export function useAdminMutations() {
     [dispatch]
   );
 
+  const updateBanner = useCallback(
+    async (bannerId: string, formData: Record<string, string>): Promise<boolean> => {
+      try {
+        const res = await fetch(`/api/banners/${bannerId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Update failed');
+        dispatch({ type: 'UPDATE_BANNER', banner: data.banner });
+        dispatch({ type: 'SET_NOTIFICATION', notification: { type: 'success', message: 'Banner updated!' } });
+        return true;
+      } catch (error) {
+        dispatch({
+          type: 'SET_NOTIFICATION',
+          notification: { type: 'error', message: 'Failed to update banner: ' + (error as Error).message },
+        });
+        return false;
+      }
+    },
+    [dispatch]
+  );
+
   const deleteBanner = useCallback(
     async (bannerId: string): Promise<boolean> => {
       try {
@@ -405,5 +429,5 @@ export function useAdminMutations() {
     [dispatch]
   );
 
-  return { saveProduct, deleteProduct, addBanner, deleteBanner, toggleBanner };
+  return { saveProduct, deleteProduct, addBanner, updateBanner, deleteBanner, toggleBanner };
 }
