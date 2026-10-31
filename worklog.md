@@ -151,3 +151,5 @@ Stage Summary:
 - Verification: tsc clean, eslint clean, zero browser console errors; mobile 390px screenshots — navbar (hamburger+logo+search icon only) ✓, search panel open ✓, hamburger with account/wishlist/cart+counts ✓; search "watch" → 1 result (Smart Fitness Watch) ✓; desktop 1366px unchanged ✓
 - Follow-up (same day): cart icon ab mobile navbar me bhi visible — search icon ke saath right end pe (profile/wishlist ab bhi sirf hamburger me); live count badge mobile pe bhi; desktop unchanged
 - Verification: mobile 390px screenshot — search + cart icons right ✓, "Add to Cart" → badge "1" + toast ✓; desktop 1366px unchanged ✓
+- Follow-up 2 (same day): mobile navbar right group = Search · Wishlist · Cart (wishlist icon added between them, red count badge on all devices); hamburger menu se Wishlist/Cart rows removed — menu ab sirf Account (ya Login/Register) · Categories · Track Order · Admin
+- Verification: tsc clean; mobile 390px — 3 icons right ✓, menu clean ✓; desktop 1366px unchanged ✓

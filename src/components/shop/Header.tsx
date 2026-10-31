@@ -112,8 +112,8 @@ export function Header() {
             </div>
           </form>
 
-          {/* Right actions — search · cart visible on every device; profile · wishlist desktop only
-              (both live in the hamburger menu on phones). Group pinned far right. */}
+          {/* Right actions — search · wishlist · cart visible on every device; profile desktop only
+              (lives in the hamburger menu on phones). Group pinned far right. */}
           <div className="ml-auto flex items-center gap-0.5 sm:gap-1.5 shrink-0">
             {/* Search toggle — phones only: opens the search box below the navbar */}
             <button
@@ -177,8 +177,8 @@ export function Header() {
               )}
             </div>
 
-            {/* Wishlist — desktop only (in hamburger menu on phones) */}
-            <Link href="/wishlist" aria-label="Wishlist" className="relative hidden lg:block p-2.5 hover:bg-gray-50 rounded-lg transition">
+            {/* Wishlist — visible on all devices (badge = live item count) */}
+            <Link href="/wishlist" aria-label="Wishlist" className="relative block p-2.5 hover:bg-gray-50 rounded-lg transition">
               <Heart size={21} className="text-navy-700" />
               {state.wishlist.length > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-medium">
@@ -238,7 +238,7 @@ export function Header() {
         </nav>
       </div>
 
-      {/* Mobile menu — account, wishlist & cart live here on phones */}
+      {/* Mobile menu — account lives here on phones (wishlist & cart are in the navbar) */}
       {mobileMenuOpen && (
         <div className="lg:hidden border-t border-gray-100 bg-white animate-fade-in">
           <div className="px-4 py-3 space-y-1">
@@ -271,26 +271,6 @@ export function Header() {
                 </Link>
               </>
             )}
-
-            <hr className="my-2" />
-
-            {/* Wishlist & Cart (with live counts) */}
-            <Link href="/wishlist" className="flex items-center justify-between px-3 py-2.5 text-sm text-navy-600 hover:bg-gray-50 rounded-lg">
-              <span className="flex items-center gap-3">
-                <Heart size={18} /> Wishlist
-              </span>
-              {state.wishlist.length > 0 && (
-                <span className="min-w-5 px-1.5 h-5 bg-red-500 text-white text-[11px] rounded-full flex items-center justify-center font-medium">{state.wishlist.length}</span>
-              )}
-            </Link>
-            <Link href="/cart" className="flex items-center justify-between px-3 py-2.5 text-sm text-navy-600 hover:bg-gray-50 rounded-lg">
-              <span className="flex items-center gap-3">
-                <ShoppingCart size={18} /> Cart
-              </span>
-              {cartCount > 0 && (
-                <span className="min-w-5 px-1.5 h-5 bg-primary-600 text-white text-[11px] rounded-full flex items-center justify-center font-medium">{cartCount}</span>
-              )}
-            </Link>
 
             <hr className="my-2" />
 
