@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --text: #272623;
+    --text-sub: #6b695f;
+    --bg: #FFFFFF;
+    --border: #D6D1C1;
+    --deep: #4e4732;
+    --accent: #92761f;
+    --connector: #A39B82;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  #root { width: fit-content; min-width: 960px; margin: 0 auto; padding: 44px 40px; background: #fff; }
+
+  .flow-title { font-size: 22px; font-weight: 700; text-align: center; color: #272623; }
+  .flow-subtitle { font-size: 13.5px; color: var(--text-sub); text-align: center; margin-top: 8px; margin-bottom: 34px; }
+
+  .layer {
+    border-radius: 14px; padding: 18px 22px 20px;
+    border: 1.5px solid var(--border);
+  }
+  .layer-1 { background: #F7F6F2; border-left: 5px solid #A48E4B; }
+  .layer-2 { background: #F1EFE8; border-left: 5px solid #8C7443; }
+  .layer-3 { background: #EBE9DF; border-left: 5px solid #6E6342; }
+
+  .layer-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+  .layer-name { font-size: 17px; font-weight: 700; color: var(--deep); }
+  .layer-path { font-size: 12.5px; color: var(--text-sub); font-family: 'DejaVu Sans Mono', 'Consolas', monospace; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; max-width: 100%; }
+  .chip {
+    flex: 1 1 200px; min-width: 170px; max-width: 300px;
+    background: #FFFFFF; border: 1px solid var(--border); border-radius: 9px;
+    padding: 10px 14px;
+  }
+  .chip b { display: block; font-size: 14.5px; font-weight: 600; color: #3c382c; }
+  .chip span { display: block; font-size: 12.5px; color: var(--text-sub); margin-top: 3px; line-height: 1.45; }
+
+  .chip-accent { border: 1.5px solid var(--accent); background: #FBF9F1; }
+  .chip-accent b { color: #7c6418; }
+
+  .arrow-wrap { display: flex; justify-content: center; gap: 220px; margin: 6px 0; }
+  .arrow { display: flex; flex-direction: column; align-items: center; }
+  .arrow .glyph { font-size: 26px; color: var(--connector); line-height: 1; }
+  .arrow .lbl {
+    font-size: 12px; color: var(--text-sub); background: #F7F6F2;
+    border: 1px solid var(--border); border-radius: 12px; padding: 3px 12px; margin-top: 4px;
+  }
+
+  .note {
+    margin-top: 26px; padding: 12px 18px; border: 1px dashed var(--border);
+    border-radius: 10px; background: #FAFAF7; font-size: 12.5px; color: var(--text-sub);
+    line-height: 1.55;
+  }
+  .note b { color: #4e4732; }
+</style>
+</head>
+<body>
+<div id="root">
+  <div class="flow-title">ShopMitra ka System Design &mdash; Bada Naksha</div>
+  <div class="flow-subtitle">Ek request browser se shuru hokar database tak kaise jaati hai, aur wapas kaise aati hai</div>
+
+  <!-- LAYER 1 : BROWSER -->
+  <div class="layer layer-1">
+    <div class="layer-head">
+      <div class="layer-name">1 &middot; Browser (User ka phone / laptop)</div>
+      <div class="layer-path">React components &middot; src/components/shop/</div>
+    </div>
+    <div class="chips">
+      <div class="chip"><b>Pages (UI)</b><span>Home, /products, /cart, /checkout, /admin &mdash; jo bhi user dekhta hai</span></div>
+      <div class="chip"><b>AppContext (Global State)</b><span>Cart, wishlist, user, banners &mdash; poore app ki yaaddasht</span></div>
+      <div class="chip"><b>localStorage</b><span>Cart + wishlist browser me hi save hote hain (DB me nahi)</span></div>
+    </div>
+  </div>
+
+  <div class="arrow-wrap">
+    <div class="arrow"><div class="glyph">&darr;</div><div class="lbl">fetch() &mdash; data maango</div></div>
+    <div class="arrow"><div class="glyph">&uarr;</div><div class="lbl">JSON response &mdash; data mila</div></div>
+  </div>
+
+  <!-- LAYER 2 : NEXT.JS SERVER -->
+  <div class="layer layer-2">
+    <div class="layer-head">
+      <div class="layer-name">2 &middot; Next.js Server (App ka dimaag)</div>
+      <div class="layer-path">src/app/api/**/route.ts + src/lib/</div>
+    </div>
+    <div class="chips">
+      <div class="chip chip-accent"><b>API Routes</b><span>/api/auth, /api/products, /api/orders, /api/payments&hellip; &mdash; request aaye to ye chalte hain</span></div>
+      <div class="chip"><b>auth.ts</b><span>Password check + session cookie banana/verify karna</span></div>
+      <div class="chip"><b>payments.ts + dodo.ts</b><span>Payment banana, verify karna, stock adjust karna</span></div>
+      <div class="chip"><b>mailer.ts</b><span>Email bhejna (Resend) + EmailLog me record</span></div>
+    </div>
+  </div>
+
+  <div class="arrow-wrap">
+    <div class="arrow"><div class="glyph">&darr;</div><div class="lbl">Prisma queries + HTTPS calls</div></div>
+  </div>
+
+  <!-- LAYER 3 : DATA & SERVICES -->
+  <div class="layer layer-3">
+    <div class="layer-head">
+      <div class="layer-name">3 &middot; Data aur External Services</div>
+      <div class="layer-path">prisma/schema.prisma &rarr; PostgreSQL</div>
+    </div>
+    <div class="chips">
+      <div class="chip"><b>PostgreSQL Database</b><span>Users, Products, Orders, Banners&hellip; sabka sacha data (Neon hosting)</span></div>
+      <div class="chip"><b>Dodo Payments</b><span>Online payment ka gateway &mdash; paisa collect karta hai</span></div>
+      <div class="chip"><b>Resend</b><span>Order emails customer ko deliver karta hai</span></div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>Simple niyam:</b> Browser sirf dikhawa karta hai (UI). Sachai (truth) hamesha server pe rehti hai &mdash; total, stock, order status sab server khud calculate karta hai. Isliye koi galti ya cheating se order kharab nahi ho sakta.
+  </div>
+</div>
+</body>
+</html>

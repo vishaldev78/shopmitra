@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;900&display=swap" rel="stylesheet">
+<style>
+  @page { size: 794px 1123px; margin: 0; }
+  :root {
+    --c-bg: #f5f5f4;
+    --c-accent: #92761f;
+    --c-text: #151513;
+    --c-muted: #7e7c74;
+    --c-mid: #4e4732;
+    --c-surface: #ebeae8;
+  }
+  html, body {
+    margin: 0; padding: 0; width: 794px; height: 1123px;
+    background: var(--c-bg); color: var(--c-text);
+    font-family: 'Inter', system-ui, 'Segoe UI', sans-serif;
+  }
+  @media screen {
+    html { height: auto; display: flex; justify-content: center; min-height: 100vh; background: var(--c-bg); }
+    body { transform-origin: top center; scale: min(1, calc(100vw / 794), calc(100vh / 1123)); margin: 0 auto; box-shadow: 0 0 60px rgba(0,0,0,0.12); }
+  }
+  .cover { width: 794px; height: 1123px; position: relative; border: none; outline: none; box-shadow: none; }
+
+  /* Layer 1 - background grid (clipped) */
+  .layer-bg {
+    position: absolute; inset: 0; overflow: hidden; z-index: 1;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(78,71,50,0.05) 0 0.5px, transparent 0.5px 66px),
+      repeating-linear-gradient(90deg, rgba(78,71,50,0.05) 0 0.5px, transparent 0.5px 66px);
+  }
+
+  /* Layer 2 - structure: thick left anchor line */
+  .layer-lines { position: absolute; inset: 0; z-index: 2; }
+  .anchor-line {
+    position: absolute; left: 95px; top: 112px; bottom: 112px;
+    width: 8px; background: var(--c-accent);
+  }
+
+  /* Layer 3 - content */
+  .layer-content { position: absolute; inset: 0; z-index: 3; }
+  .kicker {
+    position: absolute; left: 145px; top: 168px;
+    font-size: 16pt; font-weight: 400; letter-spacing: 4px;
+    text-transform: uppercase; color: var(--c-accent); opacity: 0.75;
+  }
+  .hero {
+    position: absolute; left: 145px; top: 300px;
+    font-size: 52pt; font-weight: 900; line-height: 1.15;
+    color: var(--c-text); max-width: 560px;
+  }
+  .summary {
+    position: absolute; left: 145px; top: 600px;
+    font-size: 16.5pt; font-weight: 300; line-height: 1.6;
+    color: var(--c-text); opacity: 0.85; max-width: 476px;
+  }
+  .meta {
+    position: absolute; left: 145px; top: 852px;
+    font-size: 18pt; font-weight: 600; color: var(--c-mid); line-height: 1.5;
+  }
+  .meta .sub { font-size: 15pt; font-weight: 400; color: var(--c-muted); margin-top: 6px; }
+  .footer {
+    position: absolute; left: 145px; top: 1030px;
+    font-size: 16pt; font-weight: 400; letter-spacing: 3px;
+    text-transform: uppercase; color: var(--c-muted); opacity: 0.6;
+  }
+</style>
+</head>
+<body>
+  <div class="cover">
+    <div class="layer-bg"></div>
+    <div class="layer-lines"><div class="anchor-line"></div></div>
+    <div class="layer-content">
+      <div class="kicker">Developer Codebase Guide</div>
+      <div class="hero">ShopMitra<br>Apna App Samjho</div>
+      <div class="summary">Ye guide aapke apne e-commerce app ka poora naksha samjhati hai &mdash; system design, folders, database, login system, order-payment flow, admin panel aur emails. Har chapter aapke hi project ki asli files se examples leta hai, taaki code padhna ek kahani jaisa lage.</div>
+      <div class="meta">ShopMitra Developer Edition<div class="sub">October 2026 &middot; Step-by-step Hinglish learning guide</div></div>
+      <div class="footer">ShopMitra.in &middot; Developer Docs</div>
+    </div>
+  </div>
+</body>
+</html>
