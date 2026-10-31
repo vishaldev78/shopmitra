@@ -140,3 +140,12 @@ Stage Summary:
   - .env: local sandbox Postgres URL + Resend vars; .env.example: full Neon/Resend/Dodo template with comments
 - VS Code easy-run: README.md (quick start, Neon 60s setup, Resend + Dodo setup, scripts/env tables, structure, demo credentials/coupons); .gitignore + .env/.sandbox/logs
 - Verification: lint clean; 14/14 payment tests PASS on Postgres incl. REAL Dodo checkout session (cks_...); browser E2E — mobile 390px (logo+icons right+search row) ✓, desktop (icons flush right, footer social icons) ✓, COD order SM-MVW6887W-NAMI placed with saved address + PIN autofill (Bangalore North/Karnataka via postalpincode.in) ✓, EmailLog rows order.placed → order.shipped → order.delivered on every admin status change ✓, addresses page ✓; test orders cleaned (demo-account order kept as demo data)
+
+## Stage 6.1 — Mobile navbar polish: icons into hamburger, search icon dropdown (2026-10-31)
+
+- Phones (<lg): Profile / Wishlist / Cart icons removed from the navbar row (hidden lg:block) — they now live inside the hamburger menu with icons and live count pills (wishlist red, cart primary); menu opens with account section (Hi, <name> · My Account · My Orders · Addresses · Logout, or Login/Register for guests), then wishlist/cart, then categories, then Track Order / Admin
+- Phones: search is no longer a permanent second row — a Search icon sits at the right end of the navbar; tapping it opens the search box right below the navbar (auto-focused, clear placeholder, X to close, icon highlights while open); submitting navigates to /products?search=…
+- Desktop (lg+): unchanged — inline search bar between logo and icons, profile/wishlist/cart flush right
+- Route change auto-closes search panel + menus; opening the hamburger closes search and vice-versa
+- tsconfig: excluded upload/, .sandbox/, skills/, examples/ from type-check; widened AddressFormData.label to string (matches SavedAddress, fixes 2 pre-existing TS errors); .gitignore: !.env.example
+- Verification: tsc clean, eslint clean, zero browser console errors; mobile 390px screenshots — navbar (hamburger+logo+search icon only) ✓, search panel open ✓, hamburger with account/wishlist/cart+counts ✓; search "watch" → 1 result (Smart Fitness Watch) ✓; desktop 1366px unchanged ✓

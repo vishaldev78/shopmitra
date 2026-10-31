@@ -12,7 +12,8 @@ import { MapPin, Loader2, Navigation, LocateFixed } from 'lucide-react';
 import type { SavedAddress } from '@/lib/types';
 
 export interface AddressFormData {
-  label: 'Home' | 'Work' | 'Other';
+  /** Free text shown as a chip (UI offers Home / Work / Other shortcuts). */
+  label: string;
   fullName: string;
   phone: string;
   addressLine1: string;
